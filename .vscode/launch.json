@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:RealinCloud}/RealinApi",
+            "name": "Debug App (RealinApi)",
+            "target": "App",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug App (RealinApi)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:RealinCloud}/RealinApi",
+            "name": "Release App (RealinApi)",
+            "target": "App",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release App (RealinApi)"
+        }
+    ]
+}

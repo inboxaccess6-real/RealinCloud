@@ -1,0 +1,26 @@
+# Example mapping file. Map Excel sheet names to database tables and optionally map column names
+# sheet_name: target table name
+# columns: mapping of excel column header -> db column name
+
+users_sheet:
+  table: users
+  columns:
+    "OAuth Provider": oauth_provider
+    "OAuth ID": oauth_id
+    Email: email
+    Name: name
+    Picture: picture_url
+
+# If you want a sheet to be ignored, map to null
+ignored_sheet: null
+
+# You can add per-table options such as: date columns to fill with now, upsert_on: list of columns to upsert on
+
+# Example with upsert
+some_other_sheet:
+  table: builders
+  columns:
+    "Builder Name": name
+    "Builder Email": email
+  upsert_on:
+    - email
