@@ -1,0 +1,19 @@
+{
+  "": {
+    "swift-dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/ServiceContextModule.build/master.swiftdeps"
+  },
+  "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/checkouts/swift-service-context/Sources/ServiceContextModule/ServiceContext.swift": {
+    "dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/ServiceContextModule.build/ServiceContext.d",
+    "object": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/ServiceContextModule.build/ServiceContext.swift.o",
+    "swiftmodule": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/ServiceContextModule.build/ServiceContext~partial.swiftmodule",
+    "swift-dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/ServiceContextModule.build/ServiceContext.swiftdeps",
+    "diagnostics": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/ServiceContextModule.build/ServiceContext.dia"
+  },
+  "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/checkouts/swift-service-context/Sources/ServiceContextModule/ServiceContextKey.swift": {
+    "dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/ServiceContextModule.build/ServiceContextKey.d",
+    "object": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/ServiceContextModule.build/ServiceContextKey.swift.o",
+    "swiftmodule": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/ServiceContextModule.build/ServiceContextKey~partial.swiftmodule",
+    "swift-dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/ServiceContextModule.build/ServiceContextKey.swiftdeps",
+    "diagnostics": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/ServiceContextModule.build/ServiceContextKey.dia"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "": {
+    "swift-dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdTLS.build/master.swiftdeps"
+  },
+  "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/checkouts/hummingbird/Sources/HummingbirdTLS/Exports.swift": {
+    "dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdTLS.build/Exports.d",
+    "object": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdTLS.build/Exports.swift.o",
+    "swiftmodule": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdTLS.build/Exports~partial.swiftmodule",
+    "swift-dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdTLS.build/Exports.swiftdeps",
+    "diagnostics": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdTLS.build/Exports.dia"
+  },
+  "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/checkouts/hummingbird/Sources/HummingbirdTLS/HTTPServerBuilder+tls.swift": {
+    "dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdTLS.build/HTTPServerBuilder+tls.d",
+    "object": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdTLS.build/HTTPServerBuilder+tls.swift.o",
+    "swiftmodule": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdTLS.build/HTTPServerBuilder+tls~partial.swiftmodule",
+    "swift-dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdTLS.build/HTTPServerBuilder+tls.swiftdeps",
+    "diagnostics": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdTLS.build/HTTPServerBuilder+tls.dia"
+  },
+  "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/checkouts/hummingbird/Sources/HummingbirdTLS/TLSChannel.swift": {
+    "dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdTLS.build/TLSChannel.d",
+    "object": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdTLS.build/TLSChannel.swift.o",
+    "swiftmodule": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdTLS.build/TLSChannel~partial.swiftmodule",
+    "swift-dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdTLS.build/TLSChannel.swiftdeps",
+    "diagnostics": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdTLS.build/TLSChannel.dia"
+  }
+}

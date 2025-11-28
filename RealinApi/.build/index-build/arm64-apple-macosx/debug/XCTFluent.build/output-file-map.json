@@ -1,0 +1,19 @@
+{
+  "": {
+    "swift-dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/XCTFluent.build/master.swiftdeps"
+  },
+  "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/checkouts/fluent-kit/Sources/XCTFluent/DummyDatabase.swift": {
+    "dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/XCTFluent.build/DummyDatabase.d",
+    "object": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/XCTFluent.build/DummyDatabase.swift.o",
+    "swiftmodule": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/XCTFluent.build/DummyDatabase~partial.swiftmodule",
+    "swift-dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/XCTFluent.build/DummyDatabase.swiftdeps",
+    "diagnostics": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/XCTFluent.build/DummyDatabase.dia"
+  },
+  "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/checkouts/fluent-kit/Sources/XCTFluent/TestDatabase.swift": {
+    "dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/XCTFluent.build/TestDatabase.d",
+    "object": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/XCTFluent.build/TestDatabase.swift.o",
+    "swiftmodule": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/XCTFluent.build/TestDatabase~partial.swiftmodule",
+    "swift-dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/XCTFluent.build/TestDatabase.swiftdeps",
+    "diagnostics": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/XCTFluent.build/TestDatabase.dia"
+  }
+}

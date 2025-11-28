@@ -1,0 +1,19 @@
+{
+  "": {
+    "swift-dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/NIOCertificateReloading.build/master.swiftdeps"
+  },
+  "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/checkouts/swift-nio-extras/Sources/NIOCertificateReloading/CertificateReloader.swift": {
+    "dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/NIOCertificateReloading.build/CertificateReloader.d",
+    "object": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/NIOCertificateReloading.build/CertificateReloader.swift.o",
+    "swiftmodule": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/NIOCertificateReloading.build/CertificateReloader~partial.swiftmodule",
+    "swift-dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/NIOCertificateReloading.build/CertificateReloader.swiftdeps",
+    "diagnostics": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/NIOCertificateReloading.build/CertificateReloader.dia"
+  },
+  "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/checkouts/swift-nio-extras/Sources/NIOCertificateReloading/TimedCertificateReloader.swift": {
+    "dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/NIOCertificateReloading.build/TimedCertificateReloader.d",
+    "object": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/NIOCertificateReloading.build/TimedCertificateReloader.swift.o",
+    "swiftmodule": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/NIOCertificateReloading.build/TimedCertificateReloader~partial.swiftmodule",
+    "swift-dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/NIOCertificateReloading.build/TimedCertificateReloader.swiftdeps",
+    "diagnostics": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/NIOCertificateReloading.build/TimedCertificateReloader.dia"
+  }
+}

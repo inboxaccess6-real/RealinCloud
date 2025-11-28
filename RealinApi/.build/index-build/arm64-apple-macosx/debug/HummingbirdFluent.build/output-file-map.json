@@ -1,0 +1,26 @@
+{
+  "": {
+    "swift-dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdFluent.build/master.swiftdeps"
+  },
+  "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/checkouts/hummingbird-fluent/Sources/HummingbirdFluent/Deprecations.swift": {
+    "dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdFluent.build/Deprecations.d",
+    "object": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdFluent.build/Deprecations.swift.o",
+    "swiftmodule": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdFluent.build/Deprecations~partial.swiftmodule",
+    "swift-dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdFluent.build/Deprecations.swiftdeps",
+    "diagnostics": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdFluent.build/Deprecations.dia"
+  },
+  "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/checkouts/hummingbird-fluent/Sources/HummingbirdFluent/Fluent.swift": {
+    "dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdFluent.build/Fluent.d",
+    "object": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdFluent.build/Fluent.swift.o",
+    "swiftmodule": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdFluent.build/Fluent~partial.swiftmodule",
+    "swift-dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdFluent.build/Fluent.swiftdeps",
+    "diagnostics": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdFluent.build/Fluent.dia"
+  },
+  "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/checkouts/hummingbird-fluent/Sources/HummingbirdFluent/Persist+fluent.swift": {
+    "dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdFluent.build/Persist+fluent.d",
+    "object": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdFluent.build/Persist+fluent.swift.o",
+    "swiftmodule": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdFluent.build/Persist+fluent~partial.swiftmodule",
+    "swift-dependencies": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdFluent.build/Persist+fluent.swiftdeps",
+    "diagnostics": "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/arm64-apple-macosx/debug/HummingbirdFluent.build/Persist+fluent.dia"
+  }
+}

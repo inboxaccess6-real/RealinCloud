@@ -1,0 +1,39 @@
+Users:
+  table: users
+  columns:
+    "Email": email
+    "Phone": phone_number
+    "FullName": name
+    "OAuth ID": oauth_id
+    Email: email
+    Name: name
+    Picture: picture_url
+
+Agents:
+  table: agents
+  columns:
+    "AgentName": name
+    "City": city
+    "Rating": rating
+    "License ID": license_number
+  upsert_on:
+    - email
+
+Builders:
+  table: builders
+  columns:
+    "Builder Name": name
+    "Builder Email": email
+    "Builder Phone": phone
+    "Builder Website": website
+  upsert_on:
+    - email
+
+Promoters:
+  table: promoters
+  columns:
+    "Promoter Name": name
+    "Promoter Email": email
+    "Promoter Contact": contact
+  upsert_on:
+    - email
