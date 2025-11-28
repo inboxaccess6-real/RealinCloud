@@ -1,4 +1,0 @@
-module CNIODarwin {
-    umbrella header "/Users/muralikrishnagarapati/Documents/Projects/Realin/RealinCloud/RealinApi/.build/index-build/checkouts/swift-nio/Sources/CNIODarwin/include/CNIODarwin.h"
-    export *
-}
