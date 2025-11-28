@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  realinapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: realinapi
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=realin_db;Username=realin_user;Password=realin_pass
+      - Jwt__SecretKey=your_production_secret_key_minimum_32_characters_long_change_this
+      - Jwt__Issuer=RealinApi
+      - Jwt__Audience=RealinApp
+      - Jwt__AccessTokenExpirationMinutes=60
+      - OAuth__Google__ClientId=${GOOGLE_CLIENT_ID}
+      - OAuth__Apple__ClientId=${APPLE_CLIENT_ID}
+      - Otp__ExpirationMinutes=10
+      - Otp__MaxAttemptsPerWindow=5
+      - Otp__RateLimitWindowMinutes=60
+      - Otp__Length=6
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - realin-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: realin-postgres
+    environment:
+      - POSTGRES_DB=realin_db
+      - POSTGRES_USER=realin_user
+      - POSTGRES_PASSWORD=realin_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - realin-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U realin_user -d realin_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  realin-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+    driver: local

@@ -19,6 +19,66 @@
             "target": "App",
             "configuration": "release",
             "preLaunchTask": "swift: Build Release App (RealinApi)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:RealinCloud}/RealinApi",
+            "name": "Debug Migrator (RealinApi)",
+            "target": "Migrator",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug Migrator (RealinApi)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:RealinCloud}/RealinApi",
+            "name": "Release Migrator (RealinApi)",
+            "target": "Migrator",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release Migrator (RealinApi)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:RealinCloud}/RealinApi-Swift",
+            "name": "Debug App (RealinApi-Swift)",
+            "target": "App",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug App (RealinApi-Swift)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:RealinCloud}/RealinApi-Swift",
+            "name": "Release App (RealinApi-Swift)",
+            "target": "App",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release App (RealinApi-Swift)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:RealinCloud}/RealinApi-Swift",
+            "name": "Debug Migrator (RealinApi-Swift)",
+            "target": "Migrator",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug Migrator (RealinApi-Swift)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:RealinCloud}/RealinApi-Swift",
+            "name": "Release Migrator (RealinApi-Swift)",
+            "target": "Migrator",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release Migrator (RealinApi-Swift)"
         }
     ]
 }
