@@ -38,7 +38,7 @@ public class JwtService : IJwtService
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new("provider", user.Provider.ToString())
+            new(ClaimTypes.Role, user.Role.RoleType.ToString())
         };
 
         if (!string.IsNullOrEmpty(user.Name))

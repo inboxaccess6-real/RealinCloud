@@ -135,7 +135,7 @@ public class Property
     public DateTime UpdatedAt { get; set; }
     
     // Navigation properties
-    public required Agent Agent { get; set; } // Every property has an agent
+    public Agent Agent { get; set; } = null!; // Every property has an agent
     public Project? Project { get; set; } // Property may belong to a project
     public ICollection<Media> MediaFiles { get; set; } = new List<Media>();
 }
