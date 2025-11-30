@@ -1,11 +1,5 @@
 namespace RealinApi.Data.Entities;
 
-public enum OtpDeliveryMethod
-{
-    Sms,
-    Email
-}
-
 public class OtpSession
 {
     public Guid Id { get; set; }

@@ -4,16 +4,18 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using RealinApi.Data;
 using RealinApi.Features.Auth;
+using RealinApi.Features.Admin;
+using RealinApi.Features.Property;
 using RealinApi.Infrastructure.Authentication;
 using RealinApi.Infrastructure.Authorization;
 using RealinApi.Infrastructure.ExternalServices;
 using RealinApi.Infrastructure.Messaging;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddOpenApi();
 
 // Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -61,6 +63,17 @@ builder.Services.AddScoped<ISmsService, SmsService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 
+// Property Domain Services
+builder.Services.AddScoped<IPropertyService, PropertyService>();
+builder.Services.AddScoped<IAgentService, AgentService>();
+builder.Services.AddScoped<IBuilderService, BuilderService>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
+
+// Admin Services
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
+builder.Services.AddScoped<IModuleService, ModuleService>();
+
 // CORS (configure as needed)
 builder.Services.AddCors(options =>
 {
@@ -88,20 +101,30 @@ if (app.Environment.IsDevelopment())
 }
 
 // Configure the HTTP request pipeline
+// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapOpenApi();
+    app.MapScalarApiReference();
 }
-
 app.UseHttpsRedirection();
 app.UseCors();
 
 app.UseAuthentication();
 app.UseAuthorization();
-
 // Map endpoints
 app.MapAuthEndpoints();
+
+// Property domain endpoints
+app.MapPropertyEndpoints();
+app.MapAgentEndpoints();
+app.MapBuilderEndpoints();
+app.MapProjectEndpoints();
+
+// Admin endpoints (SuperAdmin only)
+app.MapUserEndpoints();
+app.MapRoleEndpoints();
+app.MapModuleEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))
     .WithName("HealthCheck")
