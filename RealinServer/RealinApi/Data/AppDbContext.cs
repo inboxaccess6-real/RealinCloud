@@ -22,6 +22,11 @@ public class AppDbContext : DbContext
     public DbSet<Property> Properties => Set<Property>();
     public DbSet<Media> Media => Set<Media>();
     public DbSet<Agent> Agents => Set<Agent>();
+    
+    // Engagement entities
+    public DbSet<Favorite> Favorites => Set<Favorite>();
+    public DbSet<Lead> Leads => Set<Lead>();
+    public DbSet<Inquiry> Inquiries => Set<Inquiry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -354,6 +359,107 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.User)
                 .WithOne()
                 .HasForeignKey<Agent>(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ========================================
+        // ENGAGEMENT DOMAIN CONFIGURATIONS
+        // ========================================
+        
+        // Favorite configuration
+        modelBuilder.Entity<Favorite>(entity =>
+        {
+            entity.ToTable("favorites");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.PropertyId);
+            entity.HasIndex(e => new { e.UserId, e.PropertyId }).IsUnique(); // User can favorite a property only once
+            
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
+            entity.Property(e => e.PropertyId).HasColumnName("property_id").IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+            
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.Favorites)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.Property)
+                .WithMany(p => p.Favorites)
+                .HasForeignKey(e => e.PropertyId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        
+        // Lead configuration
+        modelBuilder.Entity<Lead>(entity =>
+        {
+            entity.ToTable("leads");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.PropertyId);
+            entity.HasIndex(e => e.AssignedAgentId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.CreatedAt);
+            
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
+            entity.Property(e => e.PropertyId).HasColumnName("property_id").IsRequired();
+            entity.Property(e => e.AssignedAgentId).HasColumnName("assigned_agent_id");
+            entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue(LeadStatus.New);
+            entity.Property(e => e.Notes).HasColumnName("notes").HasMaxLength(2000);
+            entity.Property(e => e.Source).HasColumnName("source").HasMaxLength(50);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
+            entity.Property(e => e.ContactedAt).HasColumnName("contacted_at");
+            entity.Property(e => e.ConvertedAt).HasColumnName("converted_at");
+            
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.Leads)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.Property)
+                .WithMany(p => p.Leads)
+                .HasForeignKey(e => e.PropertyId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.AssignedAgent)
+                .WithMany(a => a.AssignedLeads)
+                .HasForeignKey(e => e.AssignedAgentId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+        
+        // Inquiry configuration
+        modelBuilder.Entity<Inquiry>(entity =>
+        {
+            entity.ToTable("inquiries");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.PropertyId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.CreatedAt);
+            
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
+            entity.Property(e => e.PropertyId).HasColumnName("property_id").IsRequired();
+            entity.Property(e => e.Message).HasColumnName("message").HasMaxLength(2000).IsRequired();
+            entity.Property(e => e.ContactPhone).HasColumnName("contact_phone").HasMaxLength(20);
+            entity.Property(e => e.ContactEmail).HasColumnName("contact_email").HasMaxLength(255);
+            entity.Property(e => e.PreferredContactTime).HasColumnName("preferred_contact_time").HasMaxLength(100);
+            entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue(InquiryStatus.Pending);
+            entity.Property(e => e.Response).HasColumnName("response").HasMaxLength(2000);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+            entity.Property(e => e.RespondedAt).HasColumnName("responded_at");
+            
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.Inquiries)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.Property)
+                .WithMany(p => p.Inquiries)
+                .HasForeignKey(e => e.PropertyId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
