@@ -11,6 +11,8 @@ using RealinApi.Infrastructure.Authorization;
 using RealinApi.Infrastructure.ExternalServices;
 using RealinApi.Infrastructure.Messaging;
 using Scalar.AspNetCore;
+using System.Text.Json.Serialization;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,6 +54,13 @@ builder.Services.AddHttpClient();
 
 // Memory Cache for caching Apple's public keys
 builder.Services.AddMemoryCache();
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(
+        new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
+    );
+});
 
 // Application Services
 builder.Services.AddScoped<IAuthService, AuthService>();

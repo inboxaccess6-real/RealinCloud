@@ -6,9 +6,9 @@ namespace RealinApi.Infrastructure.Authentication;
 
 public interface IOtpService
 {
-    Task<(bool Success, string? Code)> GenerateOtpAsync(string? email, string? phoneNumber, OtpDeliveryMethod method);
-    Task<(bool Success, string? Error, Guid? UserId)> ValidateOtpAsync(string? email, string? phoneNumber, string code);
-    Task<bool> CheckRateLimitAsync(string? email, string? phoneNumber);
+    Task<(bool Success, string? Code)> GenerateOtpAsync(string recipient, OtpDeliveryMethod method);
+    Task<(bool Success, string? Error, Guid? UserId)> ValidateOtpAsync(string recipient, OtpDeliveryMethod method, string code);
+    Task<bool> CheckRateLimitAsync(string recipient, OtpDeliveryMethod method);
 }
 
 public class OtpService : IOtpService
@@ -34,27 +34,25 @@ public class OtpService : IOtpService
     }
 
     public async Task<(bool Success, string? Code)> GenerateOtpAsync(
-        string? email, 
-        string? phoneNumber, 
+        string recipient, 
         OtpDeliveryMethod method)
     {
-        if (string.IsNullOrEmpty(email) && string.IsNullOrEmpty(phoneNumber))
+        if (string.IsNullOrEmpty(recipient))
         {
             return (false, null);
         }
 
         // Check rate limit
-        if (!await CheckRateLimitAsync(email, phoneNumber))
+        if (!await CheckRateLimitAsync(recipient, method))
         {
-            _logger.LogWarning("Rate limit exceeded for {Email}/{PhoneNumber}", email, phoneNumber);
+            _logger.LogWarning("Rate limit exceeded for {Recipient}", recipient);
             return (false, null);
         }
 
         // Invalidate any existing OTP sessions for this email/phone
         var existingSessions = await _context.OtpSessions
-            .Where(o => !o.IsVerified && 
-                       ((!string.IsNullOrEmpty(email) && o.Email == email) ||
-                        (!string.IsNullOrEmpty(phoneNumber) && o.PhoneNumber == phoneNumber)))
+            .Where(o => !o.IsVerified && o.DeliveryMethod == method &&
+                       (method == OtpDeliveryMethod.Email ? o.Email == recipient : o.PhoneNumber == recipient))
             .ToListAsync();
 
         if (existingSessions.Any())
@@ -69,8 +67,8 @@ public class OtpService : IOtpService
         var otpSession = new OtpSession
         {
             Id = Guid.NewGuid(),
-            Email = email,
-            PhoneNumber = phoneNumber,
+            Email = method == OtpDeliveryMethod.Email ? recipient : null,
+            PhoneNumber = method == OtpDeliveryMethod.Sms ? recipient : null,
             OtpCode = otpCode,
             DeliveryMethod = method,
             CreatedAt = DateTime.UtcNow,
@@ -82,26 +80,26 @@ public class OtpService : IOtpService
         _context.OtpSessions.Add(otpSession);
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("OTP generated for {Email}/{PhoneNumber}: {Code}", email, phoneNumber, otpCode);
+        _logger.LogInformation("OTP generated for {Recipient}: {Code}", recipient, otpCode);
         
         return (true, otpCode);
     }
 
+
     public async Task<(bool Success, string? Error, Guid? UserId)> ValidateOtpAsync(
-        string? email, 
-        string? phoneNumber, 
+        string recipient, 
+        OtpDeliveryMethod method,
         string code)
     {
-        if (string.IsNullOrEmpty(email) && string.IsNullOrEmpty(phoneNumber))
+        if (string.IsNullOrEmpty(recipient))
         {
             return (false, "Email or phone number is required", null);
         }
 
         // Find the OTP session
         var otpSession = await _context.OtpSessions
-            .Where(o => !o.IsVerified &&
-                       ((!string.IsNullOrEmpty(email) && o.Email == email) ||
-                        (!string.IsNullOrEmpty(phoneNumber) && o.PhoneNumber == phoneNumber)))
+            .Where(o => !o.IsVerified && o.DeliveryMethod == method &&
+                       (method == OtpDeliveryMethod.Email ? o.Email == recipient : o.PhoneNumber == recipient))
             .OrderByDescending(o => o.CreatedAt)
             .FirstOrDefaultAsync();
 
@@ -138,19 +136,18 @@ public class OtpService : IOtpService
         otpSession.IsVerified = true;
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("OTP validated successfully for {Email}/{PhoneNumber}", email, phoneNumber);
+        _logger.LogInformation("OTP validated successfully for {Recipient}", recipient);
 
         return (true, null, otpSession.UserId);
     }
 
-    public async Task<bool> CheckRateLimitAsync(string? email, string? phoneNumber)
+    public async Task<bool> CheckRateLimitAsync(string recipient, OtpDeliveryMethod method)
     {
         var windowStart = DateTime.UtcNow.AddMinutes(-_rateLimitWindowMinutes);
 
         var attemptCount = await _context.OtpSessions
-            .Where(o => o.CreatedAt >= windowStart &&
-                       ((!string.IsNullOrEmpty(email) && o.Email == email) ||
-                        (!string.IsNullOrEmpty(phoneNumber) && o.PhoneNumber == phoneNumber)))
+            .Where(o => o.CreatedAt >= windowStart && o.DeliveryMethod == method &&
+                       (method == OtpDeliveryMethod.Email ? o.Email == recipient : o.PhoneNumber == recipient))
             .CountAsync();
 
         return attemptCount < _maxAttemptsPerWindow;

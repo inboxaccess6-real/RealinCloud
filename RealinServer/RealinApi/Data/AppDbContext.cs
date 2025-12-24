@@ -46,10 +46,14 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.RoleId);
             
             entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.Email).HasColumnName("email").HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Email).HasColumnName("email").HasMaxLength(255);
             entity.Property(e => e.PhoneNumber).HasColumnName("phone_number").HasMaxLength(20);
             entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(255);
             entity.Property(e => e.Provider).HasColumnName("provider").IsRequired();
+            
+            // Ensure at least one contact method exists
+            entity.HasCheckConstraint("CK_User_ContactMethod", 
+                "email IS NOT NULL OR phone_number IS NOT NULL");
             entity.Property(e => e.OAuthProviderId).HasColumnName("oauth_provider_id");
             entity.Property(e => e.RoleId).HasColumnName("role_id").IsRequired();
             entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);

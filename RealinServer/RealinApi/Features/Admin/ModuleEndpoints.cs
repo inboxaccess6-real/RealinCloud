@@ -31,7 +31,7 @@ public static class ModuleEndpoints
 
     private static async Task<IResult> GetAllModules(
         [FromServices] IModuleService service)
-    {
+    {   
         try
         {
             var modules = await service.GetAllModulesAsync();

@@ -161,14 +161,14 @@ public class AuthService : IAuthService
 
     public async Task<(bool Success, string? Message, string? Error)> RequestOtpAsync(OtpRequestRequest request)
     {
-        if (string.IsNullOrEmpty(request.Email) && string.IsNullOrEmpty(request.PhoneNumber))
+        if (request.Method != LoginMethod.Email && request.Method != LoginMethod.Mobile)
         {
-            return (false, null, "Email or phone number is required");
+            return (false, null, "Only 'Email' or 'Mobile' methods are supported for OTP");
         }
 
-        var method = request.Method.ToLower() switch
+        var method = request.Method.ToString().ToLower() switch
         {
-            "sms" => OtpDeliveryMethod.Sms,
+            "mobile" => OtpDeliveryMethod.Sms,
             "email" => OtpDeliveryMethod.Email,
             _ => (OtpDeliveryMethod?)null
         };
@@ -178,18 +178,13 @@ public class AuthService : IAuthService
             return (false, null, "Invalid delivery method. Use 'sms' or 'email'");
         }
 
-        if (method == OtpDeliveryMethod.Sms && string.IsNullOrEmpty(request.PhoneNumber))
+        if (string.IsNullOrWhiteSpace(request.Recipient))
         {
-            return (false, null, "Phone number is required for SMS delivery");
-        }
-
-        if (method == OtpDeliveryMethod.Email && string.IsNullOrEmpty(request.Email))
-        {
-            return (false, null, "Email is required for email delivery");
+            return (false, null, "Recipient value cannot be empty");
         }
 
         // Generate OTP
-        var (success, code) = await _otpService.GenerateOtpAsync(request.Email, request.PhoneNumber, method.Value);
+        var (success, code) = await _otpService.GenerateOtpAsync(request.Recipient, method.Value);
         if (!success || code == null)
         {
             return (false, null, "Rate limit exceeded. Please try again later");
@@ -198,11 +193,11 @@ public class AuthService : IAuthService
         // Send OTP
         if (method == OtpDeliveryMethod.Sms)
         {
-            await _smsService.SendOtpAsync(request.PhoneNumber!, code);
+            await _smsService.SendOtpAsync(request.Recipient, code);
         }
         else
         {
-            await _emailService.SendOtpAsync(request.Email!, code);
+            await _emailService.SendOtpAsync(request.Recipient, code);
         }
 
         return (true, "OTP sent successfully", null);
@@ -210,8 +205,19 @@ public class AuthService : IAuthService
 
     public async Task<(bool Success, AuthResponse? Response, string? Error)> VerifyOtpAsync(OtpVerifyRequest request)
     {
+        var method = request.Method.ToString().ToLower() switch
+        {
+            "mobile" => OtpDeliveryMethod.Sms,
+            "email" => OtpDeliveryMethod.Email,
+            _ => (OtpDeliveryMethod?)null
+        };
+        if (method == null)
+        {
+            return (false, null, "Invalid delivery method. Use 'sms' or 'email'");
+        }
+
         // Validate OTP
-        var (success, error, existingUserId) = await _otpService.ValidateOtpAsync(request.Email, request.PhoneNumber, request.Code);
+        var (success, error, existingUserId) = await _otpService.ValidateOtpAsync(request.Recipient, method.Value, request.Code);
         if (!success)
         {
             return (false, null, error);
@@ -233,9 +239,9 @@ public class AuthService : IAuthService
             // Check if user exists by email or phone
             user = await _context.Users
                 .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.Provider == AuthProvider.Otp &&
-                                         ((!string.IsNullOrEmpty(request.Email) && u.Email == request.Email) ||
-                                          (!string.IsNullOrEmpty(request.PhoneNumber) && u.PhoneNumber == request.PhoneNumber)));
+                .FirstOrDefaultAsync(u => u.Provider == AuthProvider.Otp && 
+                                         ((method == OtpDeliveryMethod.Email && u.Email == request.Recipient) ||
+                                          (method == OtpDeliveryMethod.Sms && u.PhoneNumber == request.Recipient)));
 
             if (user == null)
             {
@@ -253,8 +259,8 @@ public class AuthService : IAuthService
                 user = new User
                 {
                     Id = Guid.NewGuid(),
-                    Email = request.Email ?? $"{request.PhoneNumber}@otp.local",
-                    PhoneNumber = request.PhoneNumber,
+                    Email = method == OtpDeliveryMethod.Email ? request.Recipient : null,
+                    PhoneNumber = method == OtpDeliveryMethod.Sms ? request.Recipient : null,
                     Provider = AuthProvider.Otp,
                     RoleId = defaultRole.Id,
                     CreatedAt = DateTime.UtcNow,
