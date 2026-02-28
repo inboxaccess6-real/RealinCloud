@@ -323,15 +323,15 @@ public class AuthService : IAuthService
             }
         }
 
-        var accessToken = _jwtService.GenerateAccessToken(user);
-        var refreshToken = _jwtService.GenerateRefreshToken();
+        var accessTokenResult = _jwtService.GenerateAccessToken(user);
+        var refreshTokenResult = _jwtService.GenerateRefreshToken();
 
         var refreshTokenEntity = new RefreshToken
         {
             Id = Guid.NewGuid(),
-            Token = refreshToken,
+            Token = refreshTokenResult.Token,
             UserId = user.Id,
-            ExpiresAt = DateTime.UtcNow.AddDays(30),
+            ExpiresAt = refreshTokenResult.ExpiresAt,
             CreatedAt = DateTime.UtcNow,
             DeviceInfo = deviceInfo
         };
@@ -340,9 +340,10 @@ public class AuthService : IAuthService
         await _context.SaveChangesAsync();
 
         var response = new AuthResponse(
-            AccessToken: accessToken,
-            RefreshToken: refreshToken,
-            ExpiresAt: refreshTokenEntity.ExpiresAt,
+            AccessToken: accessTokenResult.Token,
+            AccessTokenExpiresAt: accessTokenResult.ExpiresAt,
+            RefreshToken: refreshTokenEntity.Token,
+            RefreshTokenExpiresAt: refreshTokenEntity.ExpiresAt,
             User: new UserInfo(
                 Id: user.Id,
                 Email: user.Email,

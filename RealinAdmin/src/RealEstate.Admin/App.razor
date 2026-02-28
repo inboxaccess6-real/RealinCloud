@@ -1,0 +1,27 @@
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Components.Layout.AppShell)">
+                <NotAuthorized>
+                    <RealEstate.Admin.Pages.Login />
+                </NotAuthorized>
+                <Authorizing>
+                    <div class="loading-overlay" style="min-height: 100vh;">
+                        <div class="spinner spinner-lg"></div>
+                        <span>Authenticating...</span>
+                    </div>
+                </Authorizing>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <LayoutView Layout="@typeof(Components.Layout.AppShell)">
+                <div class="empty-state" style="min-height: 60vh;">
+                    <div class="empty-state-title">Page Not Found</div>
+                    <div class="empty-state-description">The page you're looking for doesn't exist.</div>
+                    <a href="/dashboard" class="btn btn-primary mt-4">Go to Dashboard</a>
+                </div>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

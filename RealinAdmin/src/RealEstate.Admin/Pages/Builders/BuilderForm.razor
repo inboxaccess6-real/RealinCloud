@@ -1,0 +1,233 @@
+@page "/builders/create"
+@page "/builders/{Id:guid}/edit"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using RealEstate.Application.DTOs.Builders
+
+@inject BuilderService BuilderService
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+
+<div class="page-header">
+    <div style="display: flex; align-items: center; gap: 1rem;">
+        <button class="btn btn-ghost btn-sm" @onclick="GoBack">&larr; Back</button>
+        <h1 class="page-title">@(_isEditMode ? "Edit Builder" : "Create Builder")</h1>
+    </div>
+</div>
+
+@if (_isLoading)
+{
+    <div style="display: flex; justify-content: center; padding: 4rem;">
+        <div class="spinner"></div>
+    </div>
+}
+else
+{
+    <EditForm Model="_model" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+
+        <!-- Basic Info -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Builder Information</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                    @FormField("Name *", () =>
+                        @<input type="text" @bind="_model.Name" class="form-control" required />
+                    )
+                    @FormField("Email", () =>
+                        @<input type="email" @bind="_model.Email" class="form-control" />
+                    )
+                    @FormField("Phone", () =>
+                        @<input type="tel" @bind="_model.Phone" class="form-control" />
+                    )
+                    @FormField("Registration Number", () =>
+                        @<input type="text" @bind="_model.RegistrationNumber" class="form-control" />
+                    )
+                    @FormField("Established Year", () =>
+                        @<input type="number" @bind="_model.EstablishedYear" class="form-control" min="1900" max="2100" />
+                    )
+                    @FormField("Website", () =>
+                        @<input type="url" @bind="_model.Website" class="form-control" placeholder="https://" />
+                    )
+                </div>
+            </div>
+        </div>
+
+        <!-- Address -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Address</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
+                    @FormField("Headquarters Address", () =>
+                        @<textarea @bind="_model.HeadquartersAddress" class="form-control" rows="3"></textarea>
+                    )
+                </div>
+            </div>
+        </div>
+
+        <!-- Status -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Status</h3>
+            </div>
+            <div class="card-body">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                    <input type="checkbox" @bind="_model.Active" />
+                    Active
+                </label>
+            </div>
+        </div>
+
+        <!-- Submit -->
+        <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+            <button type="submit" class="btn btn-primary" disabled="@_isSaving">
+                @(_isSaving ? "Saving..." : "Save")
+            </button>
+            <button type="button" class="btn btn-ghost" @onclick="GoBack">Cancel</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public Guid? Id { get; set; }
+
+    private bool _isEditMode => Id.HasValue;
+    private bool _isLoading;
+    private bool _isSaving;
+    private BuilderFormModel _model = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (_isEditMode)
+        {
+            _isLoading = true;
+            var result = await BuilderService.GetBuilderByIdAsync(Id!.Value);
+            if (result.Success && result.Data is not null)
+            {
+                var b = result.Data;
+                _model = new BuilderFormModel
+                {
+                    Name = b.Name,
+                    Email = b.Email,
+                    Phone = b.Phone,
+                    RegistrationNumber = b.RegistrationNumber,
+                    EstablishedYear = b.EstablishedYear,
+                    Website = b.Website,
+                    HeadquartersAddress = b.HeadquartersAddress,
+                    Active = b.Active
+                };
+            }
+            else
+            {
+                ToastService.ShowError(result.Error ?? "Failed to load builder.");
+                NavigationManager.NavigateTo("/builders");
+                return;
+            }
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (string.IsNullOrWhiteSpace(_model.Name))
+        {
+            ToastService.ShowError("Name is required.");
+            return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            if (_isEditMode)
+            {
+                var request = new UpdateBuilderRequest(
+                    Name: _model.Name,
+                    Email: NullIfEmpty(_model.Email),
+                    Phone: NullIfEmpty(_model.Phone),
+                    RegistrationNumber: NullIfEmpty(_model.RegistrationNumber),
+                    EstablishedYear: _model.EstablishedYear,
+                    Website: NullIfEmpty(_model.Website),
+                    HeadquartersAddress: NullIfEmpty(_model.HeadquartersAddress),
+                    Active: _model.Active
+                );
+
+                var result = await BuilderService.UpdateBuilderAsync(Id!.Value, request);
+                if (result.Success)
+                {
+                    ToastService.ShowSuccess("Builder updated successfully.");
+                    NavigationManager.NavigateTo($"/builders/{Id!.Value}");
+                }
+                else
+                {
+                    ToastService.ShowError(result.Error ?? "Failed to update builder.");
+                }
+            }
+            else
+            {
+                var request = new CreateBuilderRequest(
+                    Name: _model.Name!,
+                    Email: NullIfEmpty(_model.Email),
+                    Phone: NullIfEmpty(_model.Phone),
+                    RegistrationNumber: NullIfEmpty(_model.RegistrationNumber),
+                    EstablishedYear: _model.EstablishedYear,
+                    Website: NullIfEmpty(_model.Website),
+                    HeadquartersAddress: NullIfEmpty(_model.HeadquartersAddress),
+                    Active: _model.Active
+                );
+
+                var result = await BuilderService.CreateBuilderAsync(request);
+                if (result.Success && result.Data is not null)
+                {
+                    ToastService.ShowSuccess("Builder created successfully.");
+                    NavigationManager.NavigateTo($"/builders/{result.Data.Id}");
+                }
+                else
+                {
+                    ToastService.ShowError(result.Error ?? "Failed to create builder.");
+                }
+            }
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private static string? NullIfEmpty(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    private static RenderFragment FormField(string label, Func<RenderFragment> input) => __builder =>
+    {
+        <div>
+            <label style="display: block; font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem; font-weight: 600;">
+                @label
+            </label>
+            @input()
+        </div>
+    };
+
+    private void GoBack()
+    {
+        if (_isEditMode)
+            NavigationManager.NavigateTo($"/builders/{Id}");
+        else
+            NavigationManager.NavigateTo("/builders");
+    }
+
+    private class BuilderFormModel
+    {
+        public string? Name { get; set; }
+        public string? Email { get; set; }
+        public string? Phone { get; set; }
+        public string? RegistrationNumber { get; set; }
+        public int? EstablishedYear { get; set; }
+        public string? Website { get; set; }
+        public string? HeadquartersAddress { get; set; }
+        public bool Active { get; set; } = true;
+    }
+}

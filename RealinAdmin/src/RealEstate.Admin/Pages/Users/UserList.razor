@@ -1,0 +1,250 @@
+@page "/users"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using RealEstate.Application.DTOs.Users
+
+@inject UserService UserService
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+@inject PermissionService PermissionService
+
+<div class="page-header">
+    <h1 class="page-title">Users</h1>
+</div>
+
+<div class="card">
+    <div class="card-header" style="display: flex; align-items: center; gap: 1rem;">
+        <FilterDropdown Label="Status"
+                        Options="_statusOptions"
+                        SelectedValue="@_selectedStatus"
+                        OnChanged="OnStatusFilterChanged" />
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <DataTable TItem="UserResponse"
+                   Columns="_columns"
+                   LoadData="LoadUsersAsync"
+                   Searchable="true"
+                   DefaultPageSize="20"
+                   @ref="_dataTable">
+            <ActionTemplate>
+                <div style="position: relative;">
+                    <button class="btn btn-ghost btn-sm"
+                            @onclick="@(() => ToggleActionMenu(context.Id))"
+                            @onclick:stopPropagation="true">
+                        ...
+                    </button>
+                    @if (_openMenuId == context.Id)
+                    {
+                        <div style="position: absolute; right: 0; top: 100%; z-index: 10; background: var(--color-surface); border: 1px solid var(--color-border, #e2e8f0); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-width: 160px; padding: 4px 0;">
+                            <button class="btn btn-ghost btn-sm" style="width: 100%; text-align: left; border-radius: 0; padding: 8px 16px;"
+                                    @onclick="@(() => ViewUser(context.Id))">
+                                View
+                            </button>
+                            <PermissionGuard Module="USER_MGMT" Permission="update">
+                                @if (context.IsBlocked)
+                                {
+                                    <button class="btn btn-ghost btn-sm" style="width: 100%; text-align: left; border-radius: 0; padding: 8px 16px;"
+                                            @onclick="@(() => UnblockUser(context))">
+                                        Unblock
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-ghost btn-sm" style="width: 100%; text-align: left; border-radius: 0; padding: 8px 16px;"
+                                            @onclick="@(() => BlockUser(context))">
+                                        Block
+                                    </button>
+                                }
+                            </PermissionGuard>
+                            <PermissionGuard Module="USER_MGMT" Permission="delete">
+                                <button class="btn btn-ghost btn-sm" style="width: 100%; text-align: left; border-radius: 0; padding: 8px 16px; color: var(--color-danger, #ef4444);"
+                                        @onclick="@(() => ConfirmDelete(context))">
+                                    Delete
+                                </button>
+                            </PermissionGuard>
+                        </div>
+                    }
+                </div>
+            </ActionTemplate>
+        </DataTable>
+    </div>
+</div>
+
+<ConfirmDialog @ref="_confirmDialog"
+               Title="@_confirmTitle"
+               Message="@_confirmMessage"
+               OnConfirm="OnConfirmAction" />
+
+@code {
+    private DataTable<UserResponse>? _dataTable;
+    private ConfirmDialog? _confirmDialog;
+
+    private string? _selectedStatus;
+    private Guid? _openMenuId;
+    private UserResponse? _pendingDeleteUser;
+    private string _confirmTitle = "";
+    private string _confirmMessage = "";
+
+    private readonly Dictionary<string, string> _statusOptions = new()
+    {
+        { "active", "Active" },
+        { "inactive", "Inactive" },
+        { "blocked", "Blocked" }
+    };
+
+    private List<DataColumn<UserResponse>> _columns = new();
+
+    protected override void OnInitialized()
+    {
+        _columns = new List<DataColumn<UserResponse>>
+        {
+            new DataColumn<UserResponse>
+            {
+                Header = "Name",
+                ValueSelector = u => u.Name ?? "\u2014"
+            },
+            new DataColumn<UserResponse>
+            {
+                Header = "Email",
+                ValueSelector = u => u.Email ?? "\u2014"
+            },
+            new DataColumn<UserResponse>
+            {
+                Header = "Phone",
+                ValueSelector = u => u.PhoneNumber ?? "\u2014"
+            },
+            new DataColumn<UserResponse>
+            {
+                Header = "Role",
+                ValueSelector = u => u.RoleName
+            },
+            new DataColumn<UserResponse>
+            {
+                Header = "Status",
+                Template = user => @<StatusBadge Status="@GetUserStatus(user)" />
+            },
+            new DataColumn<UserResponse>
+            {
+                Header = "Created",
+                ValueSelector = u => u.CreatedAt.ToString("MMM dd, yyyy")
+            }
+        };
+    }
+
+    private async Task<(List<UserResponse> Items, int TotalCount)> LoadUsersAsync(int page, int pageSize, string? search)
+    {
+        bool? isActive = _selectedStatus switch
+        {
+            "active" => true,
+            "inactive" => false,
+            _ => null
+        };
+
+        var result = await UserService.GetUsersAsync(page, pageSize, search, isActive);
+
+        if (result.Success && result.Data is not null)
+        {
+            var items = result.Data.Items;
+
+            // Apply client-side blocked filter if needed
+            if (_selectedStatus == "blocked")
+            {
+                items = items.Where(u => u.IsBlocked).ToList();
+            }
+
+            return (items, result.Data.TotalCount);
+        }
+
+        if (!string.IsNullOrEmpty(result.Error))
+        {
+            ToastService.ShowError(result.Error);
+        }
+
+        return (new List<UserResponse>(), 0);
+    }
+
+    private string GetUserStatus(UserResponse user)
+    {
+        if (user.IsBlocked) return "Blocked";
+        if (user.IsActive) return "Active";
+        return "Inactive";
+    }
+
+    private void ToggleActionMenu(Guid userId)
+    {
+        _openMenuId = _openMenuId == userId ? null : userId;
+    }
+
+    private void CloseActionMenu()
+    {
+        _openMenuId = null;
+    }
+
+    private void ViewUser(Guid userId)
+    {
+        CloseActionMenu();
+        NavigationManager.NavigateTo($"/users/{userId}");
+    }
+
+    private async Task BlockUser(UserResponse user)
+    {
+        CloseActionMenu();
+        var result = await UserService.BlockUserAsync(user.Id);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess($"User \"{user.Name ?? user.Email}\" has been blocked.");
+            if (_dataTable is not null) await _dataTable.RefreshAsync();
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to block user.");
+        }
+    }
+
+    private async Task UnblockUser(UserResponse user)
+    {
+        CloseActionMenu();
+        var result = await UserService.UnblockUserAsync(user.Id);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess($"User \"{user.Name ?? user.Email}\" has been unblocked.");
+            if (_dataTable is not null) await _dataTable.RefreshAsync();
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to unblock user.");
+        }
+    }
+
+    private void ConfirmDelete(UserResponse user)
+    {
+        CloseActionMenu();
+        _pendingDeleteUser = user;
+        _confirmTitle = "Delete User";
+        _confirmMessage = $"Are you sure you want to delete \"{user.Name ?? user.Email}\"? This action cannot be undone.";
+        _confirmDialog?.Show();
+    }
+
+    private async Task OnConfirmAction()
+    {
+        if (_pendingDeleteUser is null) return;
+
+        var result = await UserService.DeleteUserAsync(_pendingDeleteUser.Id);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess($"User \"{_pendingDeleteUser.Name ?? _pendingDeleteUser.Email}\" has been deleted.");
+            _pendingDeleteUser = null;
+            if (_dataTable is not null) await _dataTable.RefreshAsync();
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to delete user.");
+            _pendingDeleteUser = null;
+        }
+    }
+
+    private async Task OnStatusFilterChanged(string? value)
+    {
+        _selectedStatus = value;
+        if (_dataTable is not null) await _dataTable.RefreshAsync();
+    }
+}

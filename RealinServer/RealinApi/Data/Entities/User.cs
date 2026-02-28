@@ -16,7 +16,19 @@ public class User
     
     // Account status
     public bool IsActive { get; set; } = true;
-    
+
+    // Moderation
+    public bool IsBlocked { get; set; } = false;
+    public bool IsBlacklisted { get; set; } = false;
+    public string? BlacklistReason { get; set; }
+    public Guid? BlockedBy { get; set; }
+    public DateTime? BlockedAt { get; set; }
+
+    // Soft delete
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    public Guid? DeletedBy { get; set; }
+
     // Timestamps
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

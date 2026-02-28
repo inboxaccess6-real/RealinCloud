@@ -4,14 +4,11 @@ namespace RealinApi.Features.Admin.Models;
 
 public record UserResponse(
     Guid Id,
-    string Email,
+    string? Email,
     string? PhoneNumber,
     string? Name,
-    AuthProvider Provider,
-    string? OAuthProviderId,
-    Guid RoleId,
+    AuthProvider LoginType,
     string RoleName,
-    RoleType RoleType,
     bool IsActive,
     DateTime CreatedAt,
     DateTime UpdatedAt

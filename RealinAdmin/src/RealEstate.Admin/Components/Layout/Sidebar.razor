@@ -1,0 +1,87 @@
+@implements IDisposable
+@inject NavigationManager Navigation
+@inject PermissionService PermissionService
+@inject AdminAuthStateProvider AuthStateProvider
+
+<aside class="sidebar @(Collapsed ? "collapsed" : "") @(MobileOpen ? "mobile-open" : "")">
+    <div class="sidebar-header">
+        <div class="sidebar-logo">
+            <span class="sidebar-logo-text">Realin</span>
+        </div>
+    </div>
+
+    <nav class="sidebar-nav">
+        <div class="nav-section">
+            <NavItem Href="/dashboard" Icon="dashboard" Label="Dashboard" />
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-label">Management</div>
+
+            @if (PermissionService.HasModuleAccess("USER_MGMT"))
+            {
+                <NavItem Href="/users" Icon="users" Label="Users" />
+            }
+            @if (PermissionService.HasModuleAccess("AGENT_MGMT"))
+            {
+                <NavItem Href="/agents" Icon="shield" Label="Agents" />
+            }
+            @if (PermissionService.HasModuleAccess("PROPERTY_MGMT"))
+            {
+                <NavItem Href="/properties" Icon="building" Label="Properties" />
+                <NavItem Href="/builders" Icon="hardhat" Label="Builders" />
+                <NavItem Href="/projects" Icon="layers" Label="Projects" />
+            }
+        </div>
+
+        @if (PermissionService.HasModuleAccess("APPROVALS"))
+        {
+            <div class="nav-section">
+                <div class="nav-section-label">Operations</div>
+                <NavItem Href="/approvals/agents" Icon="check-circle" Label="Agent Approvals" />
+                <NavItem Href="/approvals/properties" Icon="check-square" Label="Property Approvals" />
+            </div>
+        }
+
+        @if (PermissionService.HasModuleAccess("AUDIT_LOGS") || PermissionService.HasModuleAccess("USER_MGMT") || PermissionService.HasModuleAccess("SETTINGS"))
+        {
+            <div class="nav-section">
+                <div class="nav-section-label">Administration</div>
+
+                @if (PermissionService.HasModuleAccess("ROLE_MGMT"))
+                {
+                    <NavItem Href="/roles" Icon="key" Label="Roles & Permissions" />
+                }
+                @if (PermissionService.HasModuleAccess("AUDIT_LOGS"))
+                {
+                    <NavItem Href="/audit-logs" Icon="file-text" Label="Audit Logs" />
+                }
+                @if (PermissionService.HasModuleAccess("SETTINGS"))
+                {
+                    <NavItem Href="/settings" Icon="settings" Label="Settings" />
+                }
+            </div>
+        }
+    </nav>
+</aside>
+
+@code {
+    [Parameter] public bool Collapsed { get; set; }
+    [Parameter] public bool MobileOpen { get; set; }
+    [Parameter] public EventCallback OnToggleMobile { get; set; }
+
+    protected override void OnInitialized()
+    {
+        PermissionService.OnChanged += OnPermissionsChanged;
+    }
+
+    private void OnPermissionsChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        PermissionService.OnChanged -= OnPermissionsChanged;
+    }
+}

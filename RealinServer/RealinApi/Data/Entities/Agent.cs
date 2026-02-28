@@ -11,6 +11,26 @@ public class Agent
     public string? AgencyName { get; set; }
     public int? ExperienceYears { get; set; }
     public decimal? Rating { get; set; }
+
+    // Verification workflow
+    public string Status { get; set; } = "pending"; // pending / approved / rejected / suspended / blacklisted
+    public string? VerificationNotes { get; set; }
+    public Guid? VerifiedBy { get; set; }
+    public DateTime? VerifiedAt { get; set; }
+    public string? IdProofUrl { get; set; }
+    public string? CompanyDetails { get; set; } // JSONB
+
+    // Moderation
+    public bool IsBlocked { get; set; } = false;
+    public bool IsBlacklisted { get; set; } = false;
+    public string? BlacklistReason { get; set; }
+    public Guid? BlockedBy { get; set; }
+    public DateTime? BlockedAt { get; set; }
+
+    // Soft delete
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     

@@ -1,0 +1,327 @@
+@page "/users/{Id:guid}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using RealEstate.Application.DTOs.Users
+
+@inject UserService UserService
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+@inject PermissionService PermissionService
+
+@if (_isLoading)
+{
+    <LoadingSpinner IsLoading="true" Text="Loading user details..." />
+}
+else if (_user is null)
+{
+    <div class="page-header">
+        <button class="btn btn-ghost" @onclick="GoBack">Back</button>
+    </div>
+    <EmptyState Title="User Not Found" Description="The requested user could not be found or may have been deleted." />
+}
+else
+{
+    <div class="page-header">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <button class="btn btn-ghost" @onclick="GoBack">Back</button>
+            <h1 class="page-title">@(_user.Name ?? "User Details")</h1>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <PermissionGuard Module="USER_MGMT" Permission="update">
+                @if (_user.IsBlocked)
+                {
+                    <button class="btn btn-primary btn-sm" @onclick="UnblockUser">Unblock</button>
+                }
+                else
+                {
+                    <button class="btn btn-danger btn-sm" @onclick="BlockUser">Block</button>
+                }
+            </PermissionGuard>
+            <PermissionGuard Module="USER_MGMT" Permission="delete">
+                <button class="btn btn-danger btn-sm" @onclick="ConfirmDelete">Delete</button>
+            </PermissionGuard>
+        </div>
+    </div>
+
+    <!-- User Info Card -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-body" style="display: flex; align-items: flex-start; gap: 1.5rem; flex-wrap: wrap;">
+            <!-- Avatar Placeholder -->
+            <div style="width: 64px; height: 64px; border-radius: 50%; background: var(--color-primary, #3b82f6); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 600; flex-shrink: 0;">
+                @GetInitials(_user.Name)
+            </div>
+            <div style="flex: 1; min-width: 200px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--color-text-secondary, #64748b); margin-bottom: 0.25rem;">Name</div>
+                        <div style="font-weight: 500;">@(_user.Name ?? "\u2014")</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--color-text-secondary, #64748b); margin-bottom: 0.25rem;">Email</div>
+                        <div>@(_user.Email ?? "\u2014")</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--color-text-secondary, #64748b); margin-bottom: 0.25rem;">Phone</div>
+                        <div>@(_user.PhoneNumber ?? "\u2014")</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--color-text-secondary, #64748b); margin-bottom: 0.25rem;">Role</div>
+                        <div><span class="badge">@_user.RoleName</span></div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--color-text-secondary, #64748b); margin-bottom: 0.25rem;">Status</div>
+                        <div><StatusBadge Status="@GetUserStatus()" /></div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--color-text-secondary, #64748b); margin-bottom: 0.25rem;">Login Provider</div>
+                        <div>@_user.LoginType.ToString()</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--color-text-secondary, #64748b); margin-bottom: 0.25rem;">Created</div>
+                        <div>@_user.CreatedAt.ToString("MMM dd, yyyy")</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--color-text-secondary, #64748b); margin-bottom: 0.25rem;">Updated</div>
+                        <div>@_user.UpdatedAt.ToString("MMM dd, yyyy")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs" style="margin-bottom: 1.5rem;">
+        <button class="tab @(_activeTab == "profile" ? "active" : "")" @onclick="@(() => _activeTab = "profile")">
+            Profile
+        </button>
+        <button class="tab @(_activeTab == "activity" ? "active" : "")" @onclick="@(() => _activeTab = "activity")">
+            Activity
+        </button>
+    </div>
+
+    @if (_activeTab == "profile")
+    {
+        <div class="card">
+            <div class="card-header">
+                <h3 style="font-size: 1rem; font-weight: 600; margin: 0;">Edit Profile</h3>
+            </div>
+            <div class="card-body">
+                <PermissionGuard Module="USER_MGMT" Permission="update">
+                    <div style="max-width: 480px;">
+                        <div class="form-group" style="margin-bottom: 1rem;">
+                            <label class="form-label">Name</label>
+                            <input type="text" class="form-input" @bind="_editName" placeholder="Enter name" />
+                        </div>
+                        <div class="form-group" style="margin-bottom: 1rem;">
+                            <label class="form-label">Phone Number</label>
+                            <input type="text" class="form-input" @bind="_editPhone" placeholder="Enter phone number" />
+                        </div>
+                        <div class="form-group" style="margin-bottom: 1.5rem;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" @bind="_editIsActive" />
+                                <span class="form-label" style="margin: 0;">Active</span>
+                            </label>
+                        </div>
+                        <button class="btn btn-primary" @onclick="SaveProfile" disabled="@_isSaving">
+                            @(_isSaving ? "Saving..." : "Save Changes")
+                        </button>
+                    </div>
+                </PermissionGuard>
+            </div>
+        </div>
+    }
+    else if (_activeTab == "activity")
+    {
+        <div class="card">
+            <div class="card-header">
+                <h3 style="font-size: 1rem; font-weight: 600; margin: 0;">Activity Log</h3>
+            </div>
+            <div class="card-body">
+                <EmptyState Title="No Activity Yet"
+                            Description="User activity will appear here. Audit log integration coming in Phase 4." />
+            </div>
+        </div>
+    }
+}
+
+<ConfirmDialog @ref="_confirmDialog"
+               Title="Delete User"
+               Message="@_confirmMessage"
+               OnConfirm="OnConfirmDelete" />
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private UserResponse? _user;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private string _activeTab = "profile";
+
+    // Edit form fields
+    private string? _editName;
+    private string? _editPhone;
+    private bool _editIsActive;
+
+    // Confirm dialog
+    private ConfirmDialog? _confirmDialog;
+    private string _confirmMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUser();
+    }
+
+    private async Task LoadUser()
+    {
+        _isLoading = true;
+
+        try
+        {
+            var result = await UserService.GetUserByIdAsync(Id);
+            if (result.Success && result.Data is not null)
+            {
+                _user = result.Data;
+                PopulateEditForm();
+            }
+            else
+            {
+                _user = null;
+                if (!string.IsNullOrEmpty(result.Error))
+                {
+                    ToastService.ShowError(result.Error);
+                }
+            }
+        }
+        catch
+        {
+            _user = null;
+            ToastService.ShowError("An unexpected error occurred while loading the user.");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void PopulateEditForm()
+    {
+        if (_user is null) return;
+        _editName = _user.Name;
+        _editPhone = _user.PhoneNumber;
+        _editIsActive = _user.IsActive;
+    }
+
+    private string GetUserStatus()
+    {
+        if (_user is null) return "Unknown";
+        if (_user.IsBlocked) return "Blocked";
+        if (_user.IsActive) return "Active";
+        return "Inactive";
+    }
+
+    private string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        return parts[0][0].ToString().ToUpper();
+    }
+
+    private async Task SaveProfile()
+    {
+        if (_user is null) return;
+
+        _isSaving = true;
+
+        try
+        {
+            var request = new UpdateUserRequest(
+                Name: _editName,
+                PhoneNumber: _editPhone,
+                IsActive: _editIsActive
+            );
+
+            var result = await UserService.UpdateUserAsync(_user.Id, request);
+            if (result.Success && result.Data is not null)
+            {
+                _user = result.Data;
+                PopulateEditForm();
+                ToastService.ShowSuccess("User profile updated successfully.");
+            }
+            else
+            {
+                ToastService.ShowError(result.Error ?? "Failed to update user profile.");
+            }
+        }
+        catch
+        {
+            ToastService.ShowError("An unexpected error occurred while saving.");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task BlockUser()
+    {
+        if (_user is null) return;
+
+        var result = await UserService.BlockUserAsync(_user.Id);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess($"User \"{_user.Name ?? _user.Email}\" has been blocked.");
+            await LoadUser();
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to block user.");
+        }
+    }
+
+    private async Task UnblockUser()
+    {
+        if (_user is null) return;
+
+        var result = await UserService.UnblockUserAsync(_user.Id);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess($"User \"{_user.Name ?? _user.Email}\" has been unblocked.");
+            await LoadUser();
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to unblock user.");
+        }
+    }
+
+    private void ConfirmDelete()
+    {
+        if (_user is null) return;
+        _confirmMessage = $"Are you sure you want to delete \"{_user.Name ?? _user.Email}\"? This action cannot be undone.";
+        _confirmDialog?.Show();
+    }
+
+    private async Task OnConfirmDelete()
+    {
+        if (_user is null) return;
+
+        var result = await UserService.DeleteUserAsync(_user.Id);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess($"User \"{_user.Name ?? _user.Email}\" has been deleted.");
+            NavigationManager.NavigateTo("/users");
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to delete user.");
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/users");
+    }
+}

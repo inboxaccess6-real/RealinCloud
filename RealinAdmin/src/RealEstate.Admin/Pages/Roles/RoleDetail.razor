@@ -1,0 +1,349 @@
+@page "/roles/{Id:guid}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using RealEstate.Application.DTOs.Roles
+@using RealEstate.Application.DTOs.Modules
+
+@inject RoleService RoleService
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+
+@if (_isLoading)
+{
+    <div style="display: flex; justify-content: center; padding: 4rem;">
+        <div class="spinner"></div>
+    </div>
+}
+else if (_error is not null)
+{
+    <div class="page-header">
+        <h1 class="page-title">Role Details</h1>
+    </div>
+    <div class="card">
+        <div class="card-body" style="text-align: center; padding: 3rem;">
+            <p style="color: var(--color-danger, #ef4444);">@_error</p>
+            <button class="btn btn-primary" style="margin-top: 1rem;" @onclick="GoBack">Back to Roles</button>
+        </div>
+    </div>
+}
+else if (_role is not null)
+{
+    <div class="page-header">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <button class="btn btn-ghost btn-sm" @onclick="GoBack">&larr; Back</button>
+            <h1 class="page-title">@_role.Name</h1>
+            <StatusBadge Status="@(_role.IsActive ? "active" : "inactive")" />
+        </div>
+    </div>
+
+    <!-- Role Info Card -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+            <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Role Information</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Name</div>
+                    <div>@_role.Name</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Description</div>
+                    <div>@(_role.Description ?? "\u2014")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Users</div>
+                    <div>@_role.UserCount</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Created</div>
+                    <div>@_role.CreatedAt.ToString("MMM dd, yyyy")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Permissions Matrix -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Permissions Matrix</h3>
+            @if (_isEditing)
+            {
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-ghost btn-sm" @onclick="CancelEdit">Cancel</button>
+                    <button class="btn btn-primary btn-sm" @onclick="SavePermissions" disabled="@_isSaving">
+                        @(_isSaving ? "Saving..." : "Save")
+                    </button>
+                </div>
+            }
+            else
+            {
+                <PermissionGuard Module="ROLE_MGMT" Permission="update">
+                    <button class="btn btn-ghost btn-sm" @onclick="StartEdit">Edit</button>
+                </PermissionGuard>
+            }
+        </div>
+        <div class="card-body" style="padding: 0; overflow-x: auto;">
+            <table class="data-table" style="min-width: 700px;">
+                <thead>
+                    <tr>
+                        <th style="min-width: 180px;">Module</th>
+                        <th style="text-align: center; width: 80px;">Read</th>
+                        <th style="text-align: center; width: 80px;">Create</th>
+                        <th style="text-align: center; width: 80px;">Update</th>
+                        <th style="text-align: center; width: 80px;">Delete</th>
+                        <th style="text-align: center; width: 80px;">Manage</th>
+                        <th style="text-align: center; width: 80px;">Export</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var perm in _permissions)
+                    {
+                        <tr>
+                            <td>
+                                <div style="font-weight: 600;">@perm.ModuleName</div>
+                                <div style="font-size: 0.8em; color: var(--color-text-muted, #64748b);">@perm.ModuleCode</div>
+                            </td>
+                            @if (_isEditing)
+                            {
+                                <td style="text-align: center;">
+                                    <input type="checkbox" checked="@perm.CanRead"
+                                           @onchange="@(e => SetPermission(perm.ModuleId, "read", (bool)(e.Value ?? false)))" />
+                                </td>
+                                <td style="text-align: center;">
+                                    <input type="checkbox" checked="@perm.CanCreate"
+                                           @onchange="@(e => SetPermission(perm.ModuleId, "create", (bool)(e.Value ?? false)))" />
+                                </td>
+                                <td style="text-align: center;">
+                                    <input type="checkbox" checked="@perm.CanUpdate"
+                                           @onchange="@(e => SetPermission(perm.ModuleId, "update", (bool)(e.Value ?? false)))" />
+                                </td>
+                                <td style="text-align: center;">
+                                    <input type="checkbox" checked="@perm.CanDelete"
+                                           @onchange="@(e => SetPermission(perm.ModuleId, "delete", (bool)(e.Value ?? false)))" />
+                                </td>
+                                <td style="text-align: center;">
+                                    <input type="checkbox" checked="@perm.CanManage"
+                                           @onchange="@(e => SetPermission(perm.ModuleId, "manage", (bool)(e.Value ?? false)))" />
+                                </td>
+                                <td style="text-align: center;">
+                                    <input type="checkbox" checked="@perm.CanExport"
+                                           @onchange="@(e => SetPermission(perm.ModuleId, "export", (bool)(e.Value ?? false)))" />
+                                </td>
+                            }
+                            else
+                            {
+                                @if (perm.HasAnyPermission)
+                                {
+                                    <td style="text-align: center;">@PermIcon(perm.CanRead)</td>
+                                    <td style="text-align: center;">@PermIcon(perm.CanCreate)</td>
+                                    <td style="text-align: center;">@PermIcon(perm.CanUpdate)</td>
+                                    <td style="text-align: center;">@PermIcon(perm.CanDelete)</td>
+                                    <td style="text-align: center;">@PermIcon(perm.CanManage)</td>
+                                    <td style="text-align: center;">@PermIcon(perm.CanExport)</td>
+                                }
+                                else
+                                {
+                                    <td colspan="6" style="text-align: center; color: var(--color-text-muted, #94a3b8); font-size: 0.85em;">
+                                        No permissions assigned
+                                    </td>
+                                }
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private RoleResponse? _role;
+    private List<ModuleResponse> _allModules = new();
+    private List<EditablePermission> _permissions = new();
+    private List<EditablePermission>? _originalPermissions;
+    private bool _isLoading = true;
+    private bool _isEditing;
+    private bool _isSaving;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            // Load role and modules in parallel
+            var roleTask = RoleService.GetRoleByIdAsync(Id);
+            var modulesTask = RoleService.GetModulesAsync();
+            await Task.WhenAll(roleTask, modulesTask);
+
+            var roleResult = roleTask.Result;
+            var modulesResult = modulesTask.Result;
+
+            if (roleResult.Success && roleResult.Data is not null)
+            {
+                _role = roleResult.Data;
+            }
+            else
+            {
+                _error = roleResult.Error ?? "Failed to load role details.";
+                return;
+            }
+
+            if (modulesResult.Success && modulesResult.Data is not null)
+            {
+                _allModules = modulesResult.Data.Where(m => m.IsActive).ToList();
+            }
+
+            BuildPermissionsList();
+        }
+        catch
+        {
+            _error = "An unexpected error occurred while loading role details.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void BuildPermissionsList()
+    {
+        if (_role is null) return;
+
+        var existingPerms = _role.Permissions?.ToDictionary(p => p.ModuleId) ?? new();
+
+        _permissions = _allModules.Select(m =>
+        {
+            existingPerms.TryGetValue(m.Id, out var existing);
+            return new EditablePermission
+            {
+                ModuleId = m.Id,
+                ModuleCode = m.Code,
+                ModuleName = m.Name,
+                CanRead = existing?.CanRead ?? false,
+                CanCreate = existing?.CanCreate ?? false,
+                CanUpdate = existing?.CanUpdate ?? false,
+                CanDelete = existing?.CanDelete ?? false,
+                CanManage = existing?.CanManage ?? false,
+                CanExport = existing?.CanExport ?? false
+            };
+        }).ToList();
+    }
+
+    private void StartEdit()
+    {
+        _originalPermissions = _permissions.Select(p => new EditablePermission
+        {
+            ModuleId = p.ModuleId,
+            ModuleCode = p.ModuleCode,
+            ModuleName = p.ModuleName,
+            CanRead = p.CanRead,
+            CanCreate = p.CanCreate,
+            CanUpdate = p.CanUpdate,
+            CanDelete = p.CanDelete,
+            CanManage = p.CanManage,
+            CanExport = p.CanExport
+        }).ToList();
+        _isEditing = true;
+    }
+
+    private void CancelEdit()
+    {
+        if (_originalPermissions is not null)
+        {
+            _permissions = _originalPermissions;
+            _originalPermissions = null;
+        }
+        _isEditing = false;
+    }
+
+    private void SetPermission(Guid moduleId, string permission, bool value)
+    {
+        var perm = _permissions.FirstOrDefault(p => p.ModuleId == moduleId);
+        if (perm is null) return;
+
+        switch (permission)
+        {
+            case "read": perm.CanRead = value; break;
+            case "create": perm.CanCreate = value; break;
+            case "update": perm.CanUpdate = value; break;
+            case "delete": perm.CanDelete = value; break;
+            case "manage": perm.CanManage = value; break;
+            case "export": perm.CanExport = value; break;
+        }
+    }
+
+    private async Task SavePermissions()
+    {
+        _isSaving = true;
+
+        var request = new AssignPermissionsRequest(
+            _permissions.Select(p => new PermissionAssignment(
+                p.ModuleId,
+                p.CanRead,
+                p.CanCreate,
+                p.CanUpdate,
+                p.CanDelete,
+                p.CanManage,
+                p.CanExport
+            )).ToList()
+        );
+
+        var result = await RoleService.AssignPermissionsAsync(Id, request);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess("Permissions updated successfully.");
+            _isEditing = false;
+            _originalPermissions = null;
+            await LoadDataAsync();
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to update permissions.");
+        }
+
+        _isSaving = false;
+    }
+
+    private static RenderFragment PermIcon(bool granted) => __builder =>
+    {
+        if (granted)
+        {
+            <span style="color: var(--color-success, #22c55e); font-weight: bold;">&#x2713;</span>
+        }
+        else
+        {
+            <span style="color: var(--color-text-muted, #94a3b8);">&#x2014;</span>
+        }
+    };
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/roles");
+    }
+
+    private class EditablePermission
+    {
+        public Guid ModuleId { get; set; }
+        public string ModuleCode { get; set; } = "";
+        public string ModuleName { get; set; } = "";
+        public bool CanRead { get; set; }
+        public bool CanCreate { get; set; }
+        public bool CanUpdate { get; set; }
+        public bool CanDelete { get; set; }
+        public bool CanManage { get; set; }
+        public bool CanExport { get; set; }
+
+        public bool HasAnyPermission => CanRead || CanCreate || CanUpdate || CanDelete || CanManage || CanExport;
+    }
+}

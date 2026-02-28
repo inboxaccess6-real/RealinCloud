@@ -1,0 +1,438 @@
+@page "/login"
+@layout RealEstate.Admin.Components.Layout.EmptyLayout
+@using RealEstate.Application.DTOs.Users
+@inject AuthService AuthService
+@inject UserService UserService
+@inject TokenService TokenService
+@inject NavigationManager Navigation
+@inject AdminAuthStateProvider AuthStateProvider
+@inject IJSRuntime JS
+
+<div class="login-page">
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-logo">Realin</div>
+            <div class="login-subtitle">Admin Portal</div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="toast toast-error mb-4" style="position: static; min-width: auto;">
+                <div class="toast-message">@errorMessage</div>
+            </div>
+        }
+
+        @if (currentStep == LoginStep.EnterRecipient)
+        {
+            <!-- Step 1: Enter Email or Mobile -->
+            <div class="login-tabs">
+                <button class="login-tab @(loginMethod == LoginMethod.Email ? "active" : "")"
+                        @onclick="() => SwitchMethod(LoginMethod.Email)">
+                    Email
+                </button>
+                <button class="login-tab @(loginMethod == LoginMethod.Mobile ? "active" : "")"
+                        @onclick="() => SwitchMethod(LoginMethod.Mobile)">
+                    Mobile
+                </button>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">
+                    @(loginMethod == LoginMethod.Email ? "Email Address" : "Mobile Number")
+                </label>
+                <input type="@(loginMethod == LoginMethod.Email ? "email" : "tel")"
+                       class="form-input"
+                       placeholder="@(loginMethod == LoginMethod.Email ? "you@example.com" : "+91 98765 43210")"
+                       @bind="recipient"
+                       @bind:event="oninput"
+                       @onkeydown="HandleRecipientKeyDown"
+                       disabled="@isLoading" />
+            </div>
+
+            <button class="btn btn-primary btn-block btn-lg" @onclick="SendOtp" disabled="@(isLoading || string.IsNullOrWhiteSpace(recipient))">
+                @if (isLoading)
+                {
+                    <span class="spinner"></span>
+                }
+                Send OTP
+            </button>
+        }
+        else if (currentStep == LoginStep.EnterOtp)
+        {
+            <!-- Step 2: Enter OTP -->
+            <div class="text-center mb-4">
+                <div class="text-sm text-muted">
+                    OTP sent to <strong>@recipient</strong>
+                </div>
+                <button class="btn btn-ghost btn-sm mt-2" @onclick="GoBack">Change</button>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label text-center" style="display: block;">Enter verification code</label>
+                <div class="otp-container">
+                    @for (int i = 0; i < 6; i++)
+                    {
+                        var index = i;
+                        <input type="text"
+                               maxlength="1"
+                               class="otp-input @(hasError ? "error" : "")"
+                               value="@otpDigits[index]"
+                               @oninput="(e) => HandleOtpInput(index, e)"
+                               @onkeydown="(e) => HandleOtpKeyDown(index, e)"
+                               id="otp-@index"
+                               inputmode="numeric"
+                               disabled="@isLoading" />
+                    }
+                </div>
+            </div>
+
+            <button class="btn btn-primary btn-block btn-lg" @onclick="VerifyOtp"
+                    disabled="@(isLoading || string.Join("", otpDigits).Length < 6)">
+                @if (isLoading)
+                {
+                    <span class="spinner"></span>
+                }
+                Verify & Login
+            </button>
+
+            <div class="otp-timer">
+                @if (resendCountdown > 0)
+                {
+                    <span>Resend in @resendCountdown seconds</span>
+                }
+                else
+                {
+                    <button class="otp-resend" @onclick="ResendOtp" disabled="@isLoading">Resend OTP</button>
+                }
+            </div>
+        }
+        else if (currentStep == LoginStep.CompleteProfile)
+        {
+            <!-- Step 3: Complete Profile -->
+            <div class="text-center mb-4">
+                <div style="font-size: 1.1em; font-weight: 600; margin-bottom: 0.25rem;">Complete Your Profile</div>
+                <div class="text-sm text-muted">Please fill in the required details to continue</div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">First Name *</label>
+                <input type="text"
+                       class="form-input"
+                       placeholder="Enter first name"
+                       @bind="profileFirstName"
+                       @bind:event="oninput"
+                       disabled="@isLoading" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Last Name *</label>
+                <input type="text"
+                       class="form-input"
+                       placeholder="Enter last name"
+                       @bind="profileLastName"
+                       @bind:event="oninput"
+                       disabled="@isLoading" />
+            </div>
+
+            @if (needsEmail)
+            {
+                <div class="form-group">
+                    <label class="form-label">Email Address *</label>
+                    <input type="email"
+                           class="form-input"
+                           placeholder="you@example.com"
+                           @bind="profileEmail"
+                           @bind:event="oninput"
+                           disabled="@isLoading" />
+                </div>
+            }
+
+            @if (needsPhone)
+            {
+                <div class="form-group">
+                    <label class="form-label">Phone Number *</label>
+                    <input type="tel"
+                           class="form-input"
+                           placeholder="+91 98765 43210"
+                           @bind="profilePhone"
+                           @bind:event="oninput"
+                           disabled="@isLoading" />
+                </div>
+            }
+
+            <button class="btn btn-primary btn-block btn-lg" @onclick="SaveProfile"
+                    disabled="@(isLoading || !IsProfileFormValid())">
+                @if (isLoading)
+                {
+                    <span class="spinner"></span>
+                }
+                Continue
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+    private enum LoginStep { EnterRecipient, EnterOtp, CompleteProfile }
+
+    private LoginStep currentStep = LoginStep.EnterRecipient;
+    private LoginMethod loginMethod = LoginMethod.Mobile;
+    private string recipient = "";
+    private string[] otpDigits = new string[6] { "", "", "", "", "", "" };
+    private bool isLoading = false;
+    private bool hasError = false;
+    private string? errorMessage = null;
+    private int resendCountdown = 0;
+    private System.Timers.Timer? countdownTimer;
+
+    // Profile completion fields
+    private UserInfo? _verifiedUser;
+    private string profileFirstName = "";
+    private string profileLastName = "";
+    private string profileEmail = "";
+    private string profilePhone = "";
+    private bool needsEmail;
+    private bool needsPhone;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            Navigation.NavigateTo("/dashboard");
+        }
+    }
+
+    private void SwitchMethod(LoginMethod method)
+    {
+        loginMethod = method;
+        recipient = "";
+        errorMessage = null;
+    }
+
+    private async Task HandleRecipientKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(recipient))
+        {
+            await SendOtp();
+        }
+    }
+
+    private async Task SendOtp()
+    {
+        if (string.IsNullOrWhiteSpace(recipient)) return;
+
+        isLoading = true;
+        errorMessage = null;
+        hasError = false;
+
+        var (success, error) = await AuthService.RequestOtpAsync(loginMethod, recipient.Trim());
+
+        if (success)
+        {
+            currentStep = LoginStep.EnterOtp;
+            otpDigits = new string[6] { "", "", "", "", "", "" };
+            StartResendCountdown();
+        }
+        else
+        {
+            errorMessage = error ?? "Failed to send OTP. Please try again.";
+        }
+
+        isLoading = false;
+    }
+
+    private async Task HandleOtpInput(int index, ChangeEventArgs e)
+    {
+        hasError = false;
+        errorMessage = null;
+        var value = e.Value?.ToString() ?? "";
+
+        if (!string.IsNullOrEmpty(value) && char.IsDigit(value[0]))
+        {
+            otpDigits[index] = value[0].ToString();
+
+            if (index < 5)
+            {
+                await FocusOtpInput(index + 1);
+            }
+            else
+            {
+                var code = string.Join("", otpDigits);
+                if (code.Length == 6)
+                {
+                    await VerifyOtp();
+                }
+            }
+        }
+        else
+        {
+            otpDigits[index] = "";
+        }
+    }
+
+    private async Task HandleOtpKeyDown(int index, KeyboardEventArgs e)
+    {
+        if (e.Key == "Backspace" && string.IsNullOrEmpty(otpDigits[index]) && index > 0)
+        {
+            otpDigits[index - 1] = "";
+            await FocusOtpInput(index - 1);
+        }
+    }
+
+    private async Task FocusOtpInput(int index)
+    {
+        await Task.Delay(10);
+        await JS.InvokeVoidAsync("eval", $"document.getElementById('otp-{index}')?.focus()");
+    }
+
+    private async Task VerifyOtp()
+    {
+        var code = string.Join("", otpDigits);
+        if (code.Length < 6) return;
+
+        isLoading = true;
+        errorMessage = null;
+        hasError = false;
+
+        // Don't notify auth state yet — prevents CascadingAuthenticationState from
+        // re-rendering the page and redirecting to dashboard before profile check
+        var (success, error, user) = await AuthService.VerifyOtpAsync(loginMethod, recipient.Trim(), code, notifyAuthStateChanged: false);
+
+        if (success && user != null)
+        {
+            _verifiedUser = user;
+
+            // Check if profile is complete
+            bool hasFullName = !string.IsNullOrWhiteSpace(user.Name) && user.Name.Trim().Contains(' ');
+            bool hasEmail = !string.IsNullOrWhiteSpace(user.Email);
+            bool hasPhone = !string.IsNullOrWhiteSpace(user.PhoneNumber);
+
+            if (!hasFullName || !hasEmail || !hasPhone)
+            {
+                // Pre-fill what we have
+                if (!string.IsNullOrWhiteSpace(user.Name))
+                {
+                    var parts = user.Name.Trim().Split(' ', 2);
+                    profileFirstName = parts[0];
+                    profileLastName = parts.Length > 1 ? parts[1] : "";
+                }
+
+                profileEmail = user.Email ?? "";
+                profilePhone = user.PhoneNumber ?? "";
+                needsEmail = !hasEmail;
+                needsPhone = !hasPhone;
+
+                currentStep = LoginStep.CompleteProfile;
+                errorMessage = null;
+            }
+            else
+            {
+                // Profile is complete — now notify auth state and navigate
+                AuthStateProvider.NotifyAuthenticationStateChanged();
+                Navigation.NavigateTo("/dashboard", forceLoad: true);
+            }
+        }
+        else
+        {
+            hasError = true;
+            errorMessage = error ?? "Invalid OTP. Please try again.";
+            otpDigits = new string[6] { "", "", "", "", "", "" };
+        }
+
+        isLoading = false;
+    }
+
+    private bool IsProfileFormValid()
+    {
+        if (string.IsNullOrWhiteSpace(profileFirstName) || string.IsNullOrWhiteSpace(profileLastName))
+            return false;
+        if (needsEmail && string.IsNullOrWhiteSpace(profileEmail))
+            return false;
+        if (needsPhone && string.IsNullOrWhiteSpace(profilePhone))
+            return false;
+        return true;
+    }
+
+    private async Task SaveProfile()
+    {
+        if (!IsProfileFormValid() || _verifiedUser == null) return;
+
+        isLoading = true;
+        errorMessage = null;
+
+        var fullName = $"{profileFirstName.Trim()} {profileLastName.Trim()}";
+
+        var request = new UpdateUserRequest(
+            Name: fullName,
+            Email: needsEmail ? profileEmail.Trim() : null,
+            PhoneNumber: needsPhone ? profilePhone.Trim() : null
+        );
+
+        var result = await UserService.UpdateUserAsync(_verifiedUser.Id, request);
+
+        if (result.Success)
+        {
+            // Update stored user info with the new details
+            var updatedUser = new UserInfo(
+                _verifiedUser.Id,
+                needsEmail ? profileEmail.Trim() : _verifiedUser.Email,
+                needsPhone ? profilePhone.Trim() : _verifiedUser.PhoneNumber,
+                fullName,
+                _verifiedUser.Provider,
+                _verifiedUser.Role,
+                _verifiedUser.RoleLevel
+            );
+
+            var userJson = System.Text.Json.JsonSerializer.Serialize(updatedUser);
+            await TokenService.SaveUserInfoAsync(userJson);
+            AuthStateProvider.NotifyAuthenticationStateChanged();
+
+            Navigation.NavigateTo("/dashboard", forceLoad: true);
+        }
+        else
+        {
+            errorMessage = result.Error ?? "Failed to update profile. Please try again.";
+        }
+
+        isLoading = false;
+    }
+
+    private async Task GoBack()
+    {
+        currentStep = LoginStep.EnterRecipient;
+        errorMessage = null;
+        hasError = false;
+        countdownTimer?.Stop();
+        countdownTimer?.Dispose();
+    }
+
+    private async Task ResendOtp()
+    {
+        await SendOtp();
+    }
+
+    private void StartResendCountdown()
+    {
+        resendCountdown = 60;
+        countdownTimer?.Stop();
+        countdownTimer?.Dispose();
+        countdownTimer = new System.Timers.Timer(1000);
+        countdownTimer.Elapsed += (s, e) =>
+        {
+            resendCountdown--;
+            if (resendCountdown <= 0)
+            {
+                countdownTimer?.Stop();
+            }
+            InvokeAsync(StateHasChanged);
+        };
+        countdownTimer.Start();
+    }
+
+    public void Dispose()
+    {
+        countdownTimer?.Stop();
+        countdownTimer?.Dispose();
+    }
+}

@@ -1,0 +1,89 @@
+@if (TotalPages > 0)
+{
+    <div class="pagination">
+        <span>Showing @((Page - 1) * PageSize + 1)-@(Math.Min(Page * PageSize, TotalCount)) of @TotalCount</span>
+
+        <div>
+            <button class="pagination-btn"
+                    disabled="@(Page <= 1)"
+                    @onclick="() => OnPageChanged.InvokeAsync(Page - 1)">
+                Previous
+            </button>
+
+            @foreach (var pageNum in GetPageNumbers())
+            {
+                if (pageNum == -1)
+                {
+                    <span class="pagination-btn" style="pointer-events: none;">&hellip;</span>
+                }
+                else
+                {
+                    <button class="pagination-btn @(pageNum == Page ? "active" : "")"
+                            @onclick="() => OnPageChanged.InvokeAsync(pageNum)">
+                        @pageNum
+                    </button>
+                }
+            }
+
+            <button class="pagination-btn"
+                    disabled="@(Page >= TotalPages)"
+                    @onclick="() => OnPageChanged.InvokeAsync(Page + 1)">
+                Next
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Page { get; set; }
+
+    [Parameter]
+    public int TotalPages { get; set; }
+
+    [Parameter]
+    public int PageSize { get; set; }
+
+    [Parameter]
+    public int TotalCount { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnPageChanged { get; set; }
+
+    private List<int> GetPageNumbers()
+    {
+        var pages = new List<int>();
+
+        if (TotalPages <= 7)
+        {
+            for (int i = 1; i <= TotalPages; i++)
+                pages.Add(i);
+            return pages;
+        }
+
+        // Always show first page
+        pages.Add(1);
+
+        if (Page > 3)
+        {
+            pages.Add(-1); // ellipsis
+        }
+
+        // Pages around current
+        int rangeStart = Math.Max(2, Page - 1);
+        int rangeEnd = Math.Min(TotalPages - 1, Page + 1);
+
+        for (int i = rangeStart; i <= rangeEnd; i++)
+            pages.Add(i);
+
+        if (Page < TotalPages - 2)
+        {
+            pages.Add(-1); // ellipsis
+        }
+
+        // Always show last page
+        pages.Add(TotalPages);
+
+        return pages;
+    }
+}

@@ -1,0 +1,323 @@
+@page "/projects/create"
+@page "/projects/{Id:guid}/edit"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using RealEstate.Application.DTOs.Projects
+@using RealEstate.Application.DTOs.Builders
+@using RealEstate.Application.DTOs.Common
+
+@inject ProjectService ProjectService
+@inject BuilderService BuilderService
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+
+<div class="page-header">
+    <div style="display: flex; align-items: center; gap: 1rem;">
+        <button class="btn btn-ghost btn-sm" @onclick="GoBack">&larr; Back</button>
+        <h1 class="page-title">@(_isEditMode ? "Edit Project" : "Create Project")</h1>
+    </div>
+</div>
+
+@if (_isLoading)
+{
+    <div style="display: flex; justify-content: center; padding: 4rem;">
+        <div class="spinner"></div>
+    </div>
+}
+else
+{
+    <EditForm Model="_model" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+
+        <!-- Basic Info -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Basic Information</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                    @FormField("Name *", () =>
+                        @<input type="text" @bind="_model.Name" class="form-control" required />
+                    )
+                    @FormField("Builder *", () =>
+                        @<select @bind="_model.BuilderIdText" class="form-control" required>
+                            <option value="">Select a builder...</option>
+                            @foreach (var builder in _builders)
+                            {
+                                <option value="@builder.Id">@builder.Name</option>
+                            }
+                        </select>
+                    )
+                    @FormField("RERA ID", () =>
+                        @<input type="text" @bind="_model.ReraId" class="form-control" />
+                    )
+                    @FormField("Status", () =>
+                        @<select @bind="_model.Status" class="form-control">
+                            <option value="">Select...</option>
+                            <option value="planning">Planning</option>
+                            <option value="approved">Approved</option>
+                            <option value="under_construction">Under Construction</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    )
+                    @FormField("Construction Status", () =>
+                        @<select @bind="_model.ConstructionStatus" class="form-control">
+                            <option value="">Select...</option>
+                            <option value="pre_launch">Pre Launch</option>
+                            <option value="under_construction">Under Construction</option>
+                            <option value="ready_to_move">Ready to Move</option>
+                        </select>
+                    )
+                </div>
+            </div>
+        </div>
+
+        <!-- Location -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Location</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                    @FormField("Address", () =>
+                        @<input type="text" @bind="_model.Address" class="form-control" />
+                    )
+                    @FormField("Locality", () =>
+                        @<input type="text" @bind="_model.Locality" class="form-control" />
+                    )
+                    @FormField("City", () =>
+                        @<input type="text" @bind="_model.City" class="form-control" />
+                    )
+                    @FormField("Pin Code", () =>
+                        @<input type="text" @bind="_model.PinCode" class="form-control" />
+                    )
+                    @FormField("Landmark", () =>
+                        @<input type="text" @bind="_model.Landmark" class="form-control" />
+                    )
+                    @FormField("Latitude", () =>
+                        @<input type="number" step="any" @bind="_model.Latitude" class="form-control" />
+                    )
+                    @FormField("Longitude", () =>
+                        @<input type="number" step="any" @bind="_model.Longitude" class="form-control" />
+                    )
+                </div>
+            </div>
+        </div>
+
+        <!-- Construction Details -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Construction Details</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                    @FormField("Launch Date", () =>
+                        @<input type="date" @bind="_model.LaunchDate" class="form-control" />
+                    )
+                    @FormField("Possession Date", () =>
+                        @<input type="date" @bind="_model.PossessionDate" class="form-control" />
+                    )
+                    @FormField("Total Towers", () =>
+                        @<input type="number" @bind="_model.TotalTowers" class="form-control" min="0" />
+                    )
+                    @FormField("Total Units", () =>
+                        @<input type="number" @bind="_model.TotalUnits" class="form-control" min="0" />
+                    )
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit -->
+        <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+            <button type="submit" class="btn btn-primary" disabled="@_isSaving">
+                @(_isSaving ? "Saving..." : "Save")
+            </button>
+            <button type="button" class="btn btn-ghost" @onclick="GoBack">Cancel</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public Guid? Id { get; set; }
+
+    private bool _isEditMode => Id.HasValue;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private ProjectFormModel _model = new();
+    private List<BuilderResponse> _builders = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load builders for dropdown
+        var buildersResult = await BuilderService.GetBuildersAsync(1, 500, true);
+        if (buildersResult.Success && buildersResult.Data is not null)
+        {
+            _builders = buildersResult.Data.Items;
+        }
+
+        if (_isEditMode)
+        {
+            var result = await ProjectService.GetProjectByIdAsync(Id!.Value);
+            if (result.Success && result.Data is not null)
+            {
+                var p = result.Data;
+                _model = new ProjectFormModel
+                {
+                    Name = p.Name,
+                    BuilderIdText = p.BuilderId.ToString(),
+                    ReraId = p.ReraId,
+                    Status = p.Status,
+                    ConstructionStatus = p.ConstructionStatus,
+                    Address = p.Address,
+                    Locality = p.Locality,
+                    City = p.City,
+                    PinCode = p.PinCode,
+                    Landmark = p.Landmark,
+                    Latitude = p.Latitude,
+                    Longitude = p.Longitude,
+                    LaunchDate = p.LaunchDate,
+                    PossessionDate = p.PossessionDate,
+                    TotalTowers = p.TotalTowers,
+                    TotalUnits = p.TotalUnits
+                };
+            }
+            else
+            {
+                ToastService.ShowError(result.Error ?? "Failed to load project.");
+                NavigationManager.NavigateTo("/projects");
+                return;
+            }
+        }
+
+        _isLoading = false;
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (string.IsNullOrWhiteSpace(_model.Name))
+        {
+            ToastService.ShowError("Name is required.");
+            return;
+        }
+
+        if (!Guid.TryParse(_model.BuilderIdText, out var builderId))
+        {
+            ToastService.ShowError("Please select a builder.");
+            return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            if (_isEditMode)
+            {
+                var request = new UpdateProjectRequest(
+                    Name: _model.Name,
+                    ReraId: NullIfEmpty(_model.ReraId),
+                    Address: NullIfEmpty(_model.Address),
+                    Locality: NullIfEmpty(_model.Locality),
+                    City: NullIfEmpty(_model.City),
+                    PinCode: NullIfEmpty(_model.PinCode),
+                    Landmark: NullIfEmpty(_model.Landmark),
+                    Latitude: _model.Latitude,
+                    Longitude: _model.Longitude,
+                    ConstructionStatus: NullIfEmpty(_model.ConstructionStatus),
+                    LaunchDate: _model.LaunchDate,
+                    PossessionDate: _model.PossessionDate,
+                    Status: NullIfEmpty(_model.Status),
+                    TotalTowers: _model.TotalTowers,
+                    TotalUnits: _model.TotalUnits
+                );
+
+                var result = await ProjectService.UpdateProjectAsync(Id!.Value, request);
+                if (result.Success)
+                {
+                    ToastService.ShowSuccess("Project updated successfully.");
+                    NavigationManager.NavigateTo($"/projects/{Id!.Value}");
+                }
+                else
+                {
+                    ToastService.ShowError(result.Error ?? "Failed to update project.");
+                }
+            }
+            else
+            {
+                var request = new CreateProjectRequest(
+                    Name: _model.Name!,
+                    BuilderId: builderId,
+                    ReraId: NullIfEmpty(_model.ReraId),
+                    Address: NullIfEmpty(_model.Address),
+                    Locality: NullIfEmpty(_model.Locality),
+                    City: NullIfEmpty(_model.City),
+                    PinCode: NullIfEmpty(_model.PinCode),
+                    Landmark: NullIfEmpty(_model.Landmark),
+                    Latitude: _model.Latitude,
+                    Longitude: _model.Longitude,
+                    ConstructionStatus: NullIfEmpty(_model.ConstructionStatus),
+                    LaunchDate: _model.LaunchDate,
+                    PossessionDate: _model.PossessionDate,
+                    Status: NullIfEmpty(_model.Status),
+                    TotalTowers: _model.TotalTowers,
+                    TotalUnits: _model.TotalUnits
+                );
+
+                var result = await ProjectService.CreateProjectAsync(request);
+                if (result.Success && result.Data is not null)
+                {
+                    ToastService.ShowSuccess("Project created successfully.");
+                    NavigationManager.NavigateTo($"/projects/{result.Data.Id}");
+                }
+                else
+                {
+                    ToastService.ShowError(result.Error ?? "Failed to create project.");
+                }
+            }
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private static string? NullIfEmpty(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    private static RenderFragment FormField(string label, Func<RenderFragment> input) => __builder =>
+    {
+        <div>
+            <label style="display: block; font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem; font-weight: 600;">
+                @label
+            </label>
+            @input()
+        </div>
+    };
+
+    private void GoBack()
+    {
+        if (_isEditMode)
+            NavigationManager.NavigateTo($"/projects/{Id}");
+        else
+            NavigationManager.NavigateTo("/projects");
+    }
+
+    private class ProjectFormModel
+    {
+        public string? Name { get; set; }
+        public string? BuilderIdText { get; set; }
+        public string? ReraId { get; set; }
+        public string? Status { get; set; }
+        public string? ConstructionStatus { get; set; }
+        public string? Address { get; set; }
+        public string? Locality { get; set; }
+        public string? City { get; set; }
+        public string? PinCode { get; set; }
+        public string? Landmark { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public DateTime? LaunchDate { get; set; }
+        public DateTime? PossessionDate { get; set; }
+        public int? TotalTowers { get; set; }
+        public int? TotalUnits { get; set; }
+    }
+}

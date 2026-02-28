@@ -1,0 +1,249 @@
+@page "/audit-logs"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using RealEstate.Application.DTOs.AuditLogs
+@using RealEstate.Application.DTOs.Common
+
+@inject AuditLogService AuditLogService
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+
+<div class="page-header">
+    <h1 class="page-title">Audit Logs</h1>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="filter-bar" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            <FilterDropdown Label="Entity Type"
+                            Options="_entityTypeOptions"
+                            SelectedValue="@_selectedEntityType"
+                            OnChanged="OnEntityTypeChanged" />
+        </div>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <DataTable TItem="AuditLogResponse"
+                   Columns="_columns"
+                   LoadData="LoadLogsAsync"
+                   Searchable="false"
+                   DefaultPageSize="25"
+                   @ref="_dataTable">
+            <ActionTemplate>
+                <button class="btn btn-ghost btn-sm" @onclick="@(() => ShowDetails(context))">
+                    Details
+                </button>
+            </ActionTemplate>
+        </DataTable>
+    </div>
+</div>
+
+@if (_expandedLog is not null)
+{
+    <div class="modal-backdrop" @onclick="CloseDetails">
+        <div class="modal" @onclick:stopPropagation="true" style="max-width: 640px;">
+            <div class="modal-header">
+                <h3>Audit Log Details</h3>
+            </div>
+            <div class="modal-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Action</div>
+                        <div style="font-weight: 600;">@_expandedLog.Action</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Entity Type</div>
+                        <div>@_expandedLog.EntityType</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Entity</div>
+                        <div>
+                            @{ var entityLink = GetEntityLink(_expandedLog.EntityType, _expandedLog.EntityId); }
+                            @if (entityLink is not null)
+                            {
+                                <a href="@entityLink" style="color: var(--color-primary); text-decoration: none;">
+                                    @_expandedLog.EntityId.ToString()[..8]...
+                                </a>
+                            }
+                            else
+                            {
+                                <span>@_expandedLog.EntityId.ToString()[..8]...</span>
+                            }
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Performed By</div>
+                        <div>
+                            @if (_expandedLog.PerformedByUser is not null)
+                            {
+                                <a href="/users/@_expandedLog.PerformedBy" style="color: var(--color-primary); text-decoration: none;">
+                                    @(_expandedLog.PerformedByUser.Name ?? _expandedLog.PerformedByUser.Email ?? "User")
+                                </a>
+                            }
+                            else
+                            {
+                                <span>@_expandedLog.PerformedBy.ToString()[..8]...</span>
+                            }
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Date</div>
+                        <div>@_expandedLog.CreatedAt.ToString("MMM dd, yyyy HH:mm:ss")</div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(_expandedLog.IpAddress))
+                    {
+                        <div>
+                            <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">IP Address</div>
+                            <div>@_expandedLog.IpAddress</div>
+                        </div>
+                    }
+                </div>
+
+                @if (!string.IsNullOrEmpty(_expandedLog.Details) && _expandedLog.Details != "{}")
+                {
+                    <div>
+                        <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.5rem;">Details</div>
+                        <pre style="background: var(--color-bg, #f8fafc); padding: 1rem; border-radius: 6px; font-size: 0.85em; overflow-x: auto; white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto;">@FormatJson(_expandedLog.Details)</pre>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseDetails">Close</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private DataTable<AuditLogResponse>? _dataTable;
+    private string? _selectedEntityType;
+    private Guid? _expandedId;
+    private AuditLogResponse? _expandedLog;
+    private List<DataColumn<AuditLogResponse>> _columns = new();
+
+    private readonly Dictionary<string, string> _entityTypeOptions = new()
+    {
+        { "User", "User" },
+        { "Agent", "Agent" },
+        { "Property", "Property" },
+        { "Builder", "Builder" },
+        { "Project", "Project" },
+        { "Role", "Role" }
+    };
+
+    protected override void OnInitialized()
+    {
+        _columns = new List<DataColumn<AuditLogResponse>>
+        {
+            new DataColumn<AuditLogResponse>
+            {
+                Header = "Action",
+                Template = log => @<div style="font-weight: 600;">@log.Action</div>
+            },
+            new DataColumn<AuditLogResponse>
+            {
+                Header = "Entity Type",
+                ValueSelector = log => log.EntityType
+            },
+            new DataColumn<AuditLogResponse>
+            {
+                Header = "Entity",
+                Template = log => @<div>
+                    @{ var link = GetEntityLink(log.EntityType, log.EntityId); }
+                    @if (link is not null)
+                    {
+                        <a href="@link" style="color: var(--color-primary); text-decoration: none; font-size: 0.9em;">
+                            @log.EntityId.ToString()[..8]...
+                        </a>
+                    }
+                    else
+                    {
+                        <span style="font-size: 0.9em;">@log.EntityId.ToString()[..8]...</span>
+                    }
+                </div>
+            },
+            new DataColumn<AuditLogResponse>
+            {
+                Header = "Performed By",
+                Template = log => @<div>
+                    @if (log.PerformedByUser is not null)
+                    {
+                        <a href="/users/@log.PerformedBy" style="color: var(--color-primary); text-decoration: none;">
+                            @(log.PerformedByUser.Name ?? log.PerformedByUser.Email ?? "User")
+                        </a>
+                    }
+                    else
+                    {
+                        <span style="font-size: 0.9em;">@log.PerformedBy.ToString()[..8]...</span>
+                    }
+                </div>
+            },
+            new DataColumn<AuditLogResponse>
+            {
+                Header = "Date",
+                ValueSelector = log => log.CreatedAt.ToString("MMM dd, yyyy HH:mm")
+            }
+        };
+    }
+
+    private async Task<(List<AuditLogResponse> Items, int TotalCount)> LoadLogsAsync(int page, int pageSize, string? search)
+    {
+        var entityTypeFilter = string.IsNullOrEmpty(_selectedEntityType) ? null : _selectedEntityType;
+        var result = await AuditLogService.GetLogsAsync(page, pageSize, entityTypeFilter);
+
+        if (result.Success && result.Data is not null)
+        {
+            return (result.Data.Items, result.Data.TotalCount);
+        }
+
+        if (!string.IsNullOrEmpty(result.Error))
+        {
+            ToastService.ShowError(result.Error);
+        }
+
+        return (new List<AuditLogResponse>(), 0);
+    }
+
+    private async Task OnEntityTypeChanged(string? value)
+    {
+        _selectedEntityType = value;
+        if (_dataTable is not null) await _dataTable.RefreshAsync();
+    }
+
+    private void ShowDetails(AuditLogResponse log)
+    {
+        _expandedId = log.Id;
+        _expandedLog = log;
+    }
+
+    private void CloseDetails()
+    {
+        _expandedId = null;
+        _expandedLog = null;
+    }
+
+    private static string? GetEntityLink(string entityType, Guid entityId)
+    {
+        return entityType.ToLower() switch
+        {
+            "user" => $"/users/{entityId}",
+            "agent" => $"/agents/{entityId}",
+            "property" => $"/properties/{entityId}",
+            "builder" => $"/builders/{entityId}",
+            "project" => $"/projects/{entityId}",
+            "role" => $"/roles/{entityId}",
+            _ => null
+        };
+    }
+
+    private static string FormatJson(string json)
+    {
+        try
+        {
+            var parsed = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json);
+            return System.Text.Json.JsonSerializer.Serialize(parsed, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            return json;
+        }
+    }
+}

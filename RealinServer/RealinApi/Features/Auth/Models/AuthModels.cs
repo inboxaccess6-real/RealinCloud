@@ -14,8 +14,9 @@ public record RefreshTokenRequest(string RefreshToken);
 
 public record AuthResponse(
     string AccessToken,
+    DateTimeOffset AccessTokenExpiresAt,
     string RefreshToken,
-    DateTime ExpiresAt,
+    DateTimeOffset RefreshTokenExpiresAt,
     UserInfo User
 );
 

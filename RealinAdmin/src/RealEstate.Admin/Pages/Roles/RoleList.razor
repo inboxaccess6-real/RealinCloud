@@ -1,0 +1,97 @@
+@page "/roles"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using RealEstate.Application.DTOs.Roles
+
+@inject RoleService RoleService
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+
+<div class="page-header">
+    <h1 class="page-title">Roles & Permissions</h1>
+</div>
+
+@if (_isLoading)
+{
+    <div style="display: flex; justify-content: center; padding: 4rem;">
+        <div class="spinner"></div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body" style="padding: 0; overflow-x: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Role</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Users</th>
+                        <th>Created</th>
+                        <th style="width: 80px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (_roles.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 3rem; color: var(--color-text-muted, #64748b);">
+                                No roles found.
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var role in _roles)
+                        {
+                            <tr>
+                                <td>
+                                    <div style="font-weight: 600;">@role.Name</div>
+                                </td>
+                                <td>@(role.Description ?? "\u2014")</td>
+                                <td><StatusBadge Status="@(role.IsActive ? "active" : "inactive")" /></td>
+                                <td>@role.UserCount</td>
+                                <td>@role.CreatedAt.ToString("MMM dd, yyyy")</td>
+                                <td>
+                                    <button class="btn btn-ghost btn-sm" @onclick="@(() => ViewRole(role.Id))">
+                                        View
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private List<RoleResponse> _roles = new();
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRolesAsync();
+    }
+
+    private async Task LoadRolesAsync()
+    {
+        _isLoading = true;
+        var result = await RoleService.GetRolesAsync();
+        if (result.Success && result.Data is not null)
+        {
+            _roles = result.Data;
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to load roles.");
+        }
+        _isLoading = false;
+    }
+
+    private void ViewRole(Guid roleId)
+    {
+        NavigationManager.NavigateTo($"/roles/{roleId}");
+    }
+}

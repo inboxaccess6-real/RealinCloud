@@ -1,0 +1,206 @@
+@page "/builders/{Id:guid}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using RealEstate.Application.DTOs.Builders
+@using RealEstate.Application.DTOs.Common
+
+@inject BuilderService BuilderService
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+
+@if (_isLoading)
+{
+    <div style="display: flex; justify-content: center; padding: 4rem;">
+        <div class="spinner"></div>
+    </div>
+}
+else if (_error is not null)
+{
+    <div class="page-header">
+        <h1 class="page-title">Builder Details</h1>
+    </div>
+    <div class="card">
+        <div class="card-body" style="text-align: center; padding: 3rem;">
+            <p style="color: var(--color-danger, #ef4444);">@_error</p>
+            <button class="btn btn-primary" style="margin-top: 1rem;" @onclick="GoBack">Back to Builders</button>
+        </div>
+    </div>
+}
+else if (_builder is not null)
+{
+    <div class="page-header">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <button class="btn btn-ghost btn-sm" @onclick="GoBack">&larr; Back</button>
+            <h1 class="page-title">@_builder.Name</h1>
+            <StatusBadge Status="@(_builder.Active ? "active" : "inactive")" />
+        </div>
+        <PermissionGuard Module="PROPERTY_MGMT" Permission="update">
+            <button class="btn btn-ghost btn-sm" @onclick="@(() => NavigationManager.NavigateTo($"/builders/{Id}/edit"))">Edit</button>
+        </PermissionGuard>
+    </div>
+
+    <!-- Builder Info Card -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+            <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Builder Information</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Name</div>
+                    <div>@_builder.Name</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Email</div>
+                    <div>@(_builder.Email ?? "\u2014")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Phone</div>
+                    <div>@(_builder.Phone ?? "\u2014")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Registration Number</div>
+                    <div>@(_builder.RegistrationNumber ?? "\u2014")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Established Year</div>
+                    <div>@(_builder.EstablishedYear?.ToString() ?? "\u2014")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Website</div>
+                    @if (!string.IsNullOrEmpty(_builder.Website))
+                    {
+                        <div>
+                            <a href="@_builder.Website" target="_blank" rel="noopener noreferrer" style="color: var(--color-primary); text-decoration: none;">
+                                @_builder.Website
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div>&mdash;</div>
+                    }
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Headquarters Address</div>
+                    <div>@(_builder.HeadquartersAddress ?? "\u2014")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Card -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+            <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Status</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Active</div>
+                    <div><StatusBadge Status="@(_builder.Active ? "active" : "inactive")" /></div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Blocked</div>
+                    <div>@(_builder.IsBlocked ? "Yes" : "No")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Blacklisted</div>
+                    <div>@(_builder.IsBlacklisted ? "Yes" : "No")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="metrics-grid" style="margin-bottom: 1.5rem;">
+        <a href="/projects" style="text-decoration: none; color: inherit;">
+            <div class="metric-card" style="cursor: pointer;">
+                <div class="metric-card-label">Projects</div>
+                <div class="metric-card-value">@_builder.ProjectCount</div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Created By Agent -->
+    @if (_builder.CreatedByAgentId.HasValue)
+    {
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Created By Agent</h3>
+            </div>
+            <div class="card-body">
+                <div>
+                    <a href="/agents/@_builder.CreatedByAgentId" style="color: var(--color-primary); text-decoration: none;">
+                        @(_builder.CreatedByAgent?.AgencyName ?? "View Agent")
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Dates Card -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+            <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Dates</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Created</div>
+                    <div>@_builder.CreatedAt.ToString("MMM dd, yyyy")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Updated</div>
+                    <div>@_builder.UpdatedAt.ToString("MMM dd, yyyy")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private BuilderResponse? _builder;
+    private bool _isLoading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBuilderAsync();
+    }
+
+    private async Task LoadBuilderAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            var result = await BuilderService.GetBuilderByIdAsync(Id);
+
+            if (result.Success && result.Data is not null)
+            {
+                _builder = result.Data;
+            }
+            else
+            {
+                _error = result.Error ?? "Failed to load builder details.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = "An unexpected error occurred while loading builder details.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/builders");
+    }
+}

@@ -1,0 +1,293 @@
+@page "/agents/{Id:guid}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using RealEstate.Application.DTOs.Agents
+@using RealEstate.Application.DTOs.Common
+
+@inject AgentService AgentService
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+
+@if (_isLoading)
+{
+    <div style="display: flex; justify-content: center; padding: 4rem;">
+        <div class="spinner"></div>
+    </div>
+}
+else if (_error is not null)
+{
+    <div class="page-header">
+        <h1 class="page-title">Agent Details</h1>
+    </div>
+    <div class="card">
+        <div class="card-body" style="text-align: center; padding: 3rem;">
+            <p style="color: var(--color-danger, #ef4444);">@_error</p>
+            <button class="btn btn-primary" style="margin-top: 1rem;" @onclick="GoBack">Back to Agents</button>
+        </div>
+    </div>
+}
+else if (_agent is not null)
+{
+    <div class="page-header">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <button class="btn btn-ghost btn-sm" @onclick="GoBack">&larr; Back</button>
+            <h1 class="page-title">@(_agent.User?.Name ?? "Agent Details")</h1>
+            <StatusBadge Status="@_agent.Status" />
+        </div>
+    </div>
+
+    <!-- Agent Info Card -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+            <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Agent Information</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Agency Name</div>
+                    <div>@(_agent.AgencyName ?? "\u2014")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">License Number</div>
+                    <div>@(_agent.LicenseNumber ?? "\u2014")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Experience</div>
+                    <div>@(_agent.ExperienceYears.HasValue ? $"{_agent.ExperienceYears.Value} years" : "\u2014")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Rating</div>
+                    <div>@(_agent.Rating.HasValue ? $"{_agent.Rating.Value:F1} \u2605" : "\u2014")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Linked User Card -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+            <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Linked User</h3>
+        </div>
+        <div class="card-body">
+            @if (_agent.User is not null)
+            {
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                    <div>
+                        <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Name</div>
+                        <div>
+                            <a href="/users/@_agent.UserId" style="color: var(--color-primary); text-decoration: none;">
+                                @(_agent.User.Name ?? "\u2014")
+                            </a>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Email</div>
+                        <div>@(_agent.User.Email ?? "\u2014")</div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <p style="color: var(--color-text-muted, #64748b);">No linked user information available.</p>
+            }
+        </div>
+    </div>
+
+    <!-- Verification Card -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+            <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Verification</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Status</div>
+                    <div><StatusBadge Status="@_agent.Status" /></div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Blocked</div>
+                    <div>@(_agent.IsBlocked ? "Yes" : "No")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Blacklisted</div>
+                    <div>@(_agent.IsBlacklisted ? "Yes" : "No")</div>
+                </div>
+            </div>
+            @if (!string.IsNullOrEmpty(_agent.VerificationNotes))
+            {
+                <div style="margin-top: 1rem;">
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Verification Notes</div>
+                    <div>@_agent.VerificationNotes</div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="metrics-grid" style="margin-bottom: 1.5rem;">
+        <a href="/properties?agentId=@_agent.Id" style="text-decoration: none; color: inherit;">
+            <div class="metric-card" style="cursor: pointer;">
+                <div class="metric-card-label">Properties</div>
+                <div class="metric-card-value">@_agent.PropertyCount</div>
+            </div>
+        </a>
+        <a href="/builders" style="text-decoration: none; color: inherit;">
+            <div class="metric-card" style="cursor: pointer;">
+                <div class="metric-card-label">Builders</div>
+                <div class="metric-card-value">@_agent.BuilderCount</div>
+            </div>
+        </a>
+        <a href="/projects" style="text-decoration: none; color: inherit;">
+            <div class="metric-card" style="cursor: pointer;">
+                <div class="metric-card-label">Projects</div>
+                <div class="metric-card-value">@_agent.ProjectCount</div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Dates Card -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+            <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Dates</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Created</div>
+                    <div>@_agent.CreatedAt.ToString("MMM dd, yyyy")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Updated</div>
+                    <div>@_agent.UpdatedAt.ToString("MMM dd, yyyy")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <PermissionGuard Module="AGENT_MGMT" Permission="update">
+        <div class="card">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Actions</h3>
+            </div>
+            <div class="card-body" style="display: flex; gap: 1rem;">
+                <a href="/agents/@_agent.Id/edit" class="btn btn-ghost">Edit</a>
+                @if (string.Equals(_agent.Status, "pending", StringComparison.OrdinalIgnoreCase))
+                {
+                    <button class="btn btn-primary" @onclick="ConfirmApprove">Approve</button>
+                    <button class="btn btn-danger" @onclick="ConfirmReject">Reject</button>
+                }
+            </div>
+        </div>
+    </PermissionGuard>
+}
+
+<ConfirmDialog @ref="_confirmDialog"
+               Title="Approve Agent"
+               Message="@_confirmMessage"
+               ConfirmText="Approve"
+               ConfirmCssClass="btn btn-primary"
+               OnConfirm="OnConfirmApprove" />
+
+<ReasonDialog @ref="_reasonDialog"
+              Title="Reject Agent"
+              Message="@_rejectMessage"
+              ReasonLabel="Rejection Reason"
+              ConfirmText="Reject"
+              OnConfirm="OnConfirmReject" />
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private AgentResponse? _agent;
+    private bool _isLoading = true;
+    private string? _error;
+    private ConfirmDialog? _confirmDialog;
+    private ReasonDialog? _reasonDialog;
+    private string _confirmMessage = "";
+    private string _rejectMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAgentAsync();
+    }
+
+    private async Task LoadAgentAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            var result = await AgentService.GetAgentByIdAsync(Id);
+
+            if (result.Success && result.Data is not null)
+            {
+                _agent = result.Data;
+            }
+            else
+            {
+                _error = result.Error ?? "Failed to load agent details.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = "An unexpected error occurred while loading agent details.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/agents");
+    }
+
+    private void ConfirmApprove()
+    {
+        if (_agent is null) return;
+        _confirmMessage = $"Are you sure you want to approve agent \"{_agent.User?.Name ?? _agent.AgencyName ?? "this agent"}\"?";
+        _confirmDialog?.Show();
+    }
+
+    private void ConfirmReject()
+    {
+        if (_agent is null) return;
+        _rejectMessage = $"Please provide a reason for rejecting agent \"{_agent.User?.Name ?? _agent.AgencyName ?? "this agent"}\".";
+        _reasonDialog?.Show();
+    }
+
+    private async Task OnConfirmApprove()
+    {
+        if (_agent is null) return;
+
+        var result = await AgentService.ApproveAgentAsync(_agent.Id);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess("Agent has been approved.");
+            await LoadAgentAsync();
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to approve agent.");
+        }
+    }
+
+    private async Task OnConfirmReject(string reason)
+    {
+        if (_agent is null) return;
+
+        var result = await AgentService.RejectAgentAsync(_agent.Id, reason);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess("Agent has been rejected.");
+            await LoadAgentAsync();
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to reject agent.");
+        }
+    }
+}

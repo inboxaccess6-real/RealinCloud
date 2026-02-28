@@ -1,0 +1,240 @@
+@page "/approvals/properties"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using RealEstate.Application.DTOs.Properties
+@using RealEstate.Application.DTOs.Common
+
+@inject PropertyService PropertyService
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+
+<div class="page-header">
+    <h1 class="page-title">Property Approvals</h1>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="tabs">
+            @foreach (var tab in _statusTabs)
+            {
+                <button class="tab @(tab.Key == _selectedStatus ? "active" : "")"
+                        @onclick="@(() => OnStatusTabChanged(tab.Key))">
+                    @tab.Value
+                </button>
+            }
+        </div>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <DataTable TItem="PropertyResponse"
+                   Columns="_columns"
+                   LoadData="LoadPropertiesAsync"
+                   Searchable="true"
+                   DefaultPageSize="20"
+                   @ref="_dataTable">
+            <ActionTemplate>
+                <div style="position: relative;">
+                    <button class="btn btn-ghost btn-sm"
+                            @onclick="@(() => ToggleActionMenu(context.Id))"
+                            @onclick:stopPropagation="true">
+                        ...
+                    </button>
+                    @if (_openMenuId == context.Id)
+                    {
+                        <div style="position: absolute; right: 0; top: 100%; z-index: 10; background: var(--color-surface); border: 1px solid var(--color-border, #e2e8f0); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-width: 160px; padding: 4px 0;">
+                            <button class="btn btn-ghost btn-sm" style="width: 100%; text-align: left; border-radius: 0; padding: 8px 16px;"
+                                    @onclick="@(() => ViewProperty(context.Id))">
+                                View
+                            </button>
+                            @if (string.Equals(context.ApprovalStatus, "submitted", StringComparison.OrdinalIgnoreCase)
+                                || string.Equals(context.ApprovalStatus, "under_review", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <button class="btn btn-ghost btn-sm" style="width: 100%; text-align: left; border-radius: 0; padding: 8px 16px; color: var(--color-success, #22c55e);"
+                                        @onclick="@(() => ConfirmApprove(context))">
+                                    Approve
+                                </button>
+                                <button class="btn btn-ghost btn-sm" style="width: 100%; text-align: left; border-radius: 0; padding: 8px 16px; color: var(--color-danger, #ef4444);"
+                                        @onclick="@(() => ConfirmReject(context))">
+                                    Reject
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            </ActionTemplate>
+        </DataTable>
+    </div>
+</div>
+
+<ConfirmDialog @ref="_confirmDialog"
+               Title="Approve Property"
+               Message="@_confirmMessage"
+               ConfirmText="Approve"
+               ConfirmCssClass="btn btn-primary"
+               OnConfirm="OnConfirmApprove" />
+
+<ReasonDialog @ref="_reasonDialog"
+              Title="Reject Property"
+              Message="@_rejectMessage"
+              ReasonLabel="Rejection Reason"
+              ConfirmText="Reject"
+              OnConfirm="OnConfirmReject" />
+
+@code {
+    private DataTable<PropertyResponse>? _dataTable;
+    private string? _selectedStatus = "submitted";
+    private Guid? _openMenuId;
+    private ConfirmDialog? _confirmDialog;
+    private ReasonDialog? _reasonDialog;
+    private string _confirmMessage = "";
+    private string _rejectMessage = "";
+    private PropertyResponse? _selectedProperty;
+
+    private readonly Dictionary<string, string> _statusTabs = new()
+    {
+        { "submitted", "Submitted" },
+        { "approved", "Approved" },
+        { "rejected", "Rejected" },
+        { "", "All" }
+    };
+
+    private List<DataColumn<PropertyResponse>> _columns = new();
+
+    protected override void OnInitialized()
+    {
+        _columns = new List<DataColumn<PropertyResponse>>
+        {
+            new DataColumn<PropertyResponse>
+            {
+                Header = "Title",
+                Template = property => @<div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="@property.Title">
+                    @property.Title
+                </div>
+            },
+            new DataColumn<PropertyResponse>
+            {
+                Header = "Type",
+                ValueSelector = p => p.PropertyType
+            },
+            new DataColumn<PropertyResponse>
+            {
+                Header = "City",
+                ValueSelector = p => p.City ?? "\u2014"
+            },
+            new DataColumn<PropertyResponse>
+            {
+                Header = "Price",
+                ValueSelector = p => FormatPrice(p.Price, p.Currency)
+            },
+            new DataColumn<PropertyResponse>
+            {
+                Header = "Agent",
+                ValueSelector = p => p.Agent?.AgencyName ?? "\u2014"
+            },
+            new DataColumn<PropertyResponse>
+            {
+                Header = "Status",
+                Template = property => @<StatusBadge Status="@property.ApprovalStatus" />
+            }
+        };
+    }
+
+    private async Task<(List<PropertyResponse> Items, int TotalCount)> LoadPropertiesAsync(int page, int pageSize, string? search)
+    {
+        var statusFilter = string.IsNullOrEmpty(_selectedStatus) ? null : _selectedStatus;
+        var result = await PropertyService.GetPropertiesAsync(page, pageSize, approvalStatus: statusFilter);
+
+        if (result.Success && result.Data is not null)
+        {
+            return (result.Data.Items, result.Data.TotalCount);
+        }
+
+        if (!string.IsNullOrEmpty(result.Error))
+        {
+            ToastService.ShowError(result.Error);
+        }
+
+        return (new List<PropertyResponse>(), 0);
+    }
+
+    private async Task OnStatusTabChanged(string status)
+    {
+        _selectedStatus = status;
+        _openMenuId = null;
+        if (_dataTable is not null) await _dataTable.RefreshAsync();
+    }
+
+    private void ToggleActionMenu(Guid propertyId)
+    {
+        _openMenuId = _openMenuId == propertyId ? null : propertyId;
+    }
+
+    private void ViewProperty(Guid propertyId)
+    {
+        _openMenuId = null;
+        NavigationManager.NavigateTo($"/properties/{propertyId}");
+    }
+
+    private void ConfirmApprove(PropertyResponse property)
+    {
+        _openMenuId = null;
+        _selectedProperty = property;
+        _confirmMessage = $"Are you sure you want to approve property \"{property.Title}\"?";
+        _confirmDialog?.Show();
+    }
+
+    private void ConfirmReject(PropertyResponse property)
+    {
+        _openMenuId = null;
+        _selectedProperty = property;
+        _rejectMessage = $"Please provide a reason for rejecting property \"{property.Title}\".";
+        _reasonDialog?.Show();
+    }
+
+    private async Task OnConfirmApprove()
+    {
+        if (_selectedProperty is null) return;
+
+        var result = await PropertyService.ApprovePropertyAsync(_selectedProperty.Id);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess("Property has been approved.");
+            if (_dataTable is not null) await _dataTable.RefreshAsync();
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to approve property.");
+        }
+
+        _selectedProperty = null;
+    }
+
+    private async Task OnConfirmReject(string reason)
+    {
+        if (_selectedProperty is null) return;
+
+        var result = await PropertyService.RejectPropertyAsync(_selectedProperty.Id, reason);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess("Property has been rejected.");
+            if (_dataTable is not null) await _dataTable.RefreshAsync();
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to reject property.");
+        }
+
+        _selectedProperty = null;
+    }
+
+    private static string FormatPrice(decimal price, string currency)
+    {
+        if (string.Equals(currency, "INR", StringComparison.OrdinalIgnoreCase))
+        {
+            if (price >= 10_000_000m)
+                return $"\u20B9{price / 10_000_000m:F1}Cr";
+            if (price >= 100_000m)
+                return $"\u20B9{price / 100_000m:F1}L";
+            return $"\u20B9{price:N0}";
+        }
+        return $"{currency} {price:N0}";
+    }
+}

@@ -28,6 +28,9 @@ public class AppDbContext : DbContext
     public DbSet<Lead> Leads => Set<Lead>();
     public DbSet<Inquiry> Inquiries => Set<Inquiry>();
 
+    // Admin entities
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -57,9 +60,17 @@ public class AppDbContext : DbContext
             entity.Property(e => e.OAuthProviderId).HasColumnName("oauth_provider_id");
             entity.Property(e => e.RoleId).HasColumnName("role_id").IsRequired();
             entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            entity.Property(e => e.IsBlocked).HasColumnName("is_blocked").HasDefaultValue(false);
+            entity.Property(e => e.IsBlacklisted).HasColumnName("is_blacklisted").HasDefaultValue(false);
+            entity.Property(e => e.BlacklistReason).HasColumnName("blacklist_reason").HasMaxLength(500);
+            entity.Property(e => e.BlockedBy).HasColumnName("blocked_by");
+            entity.Property(e => e.BlockedAt).HasColumnName("blocked_at");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+            entity.Property(e => e.DeletedBy).HasColumnName("deleted_by");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
-            
+
             entity.HasOne(e => e.Role)
                 .WithMany(r => r.Users)
                 .HasForeignKey(e => e.RoleId)
@@ -165,9 +176,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CanUpdate).HasColumnName("can_update").HasDefaultValue(false);
             entity.Property(e => e.CanDelete).HasColumnName("can_delete").HasDefaultValue(false);
             entity.Property(e => e.CanManage).HasColumnName("can_manage").HasDefaultValue(false);
+            entity.Property(e => e.CanExport).HasColumnName("can_export").HasDefaultValue(false);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
-            
+
             entity.HasOne(e => e.Role)
                 .WithMany(r => r.Permissions)
                 .HasForeignKey(e => e.RoleId)
@@ -201,9 +213,17 @@ public class AppDbContext : DbContext
             entity.Property(e => e.HeadquartersAddress).HasColumnName("headquarters_address").HasMaxLength(1000);
             entity.Property(e => e.Website).HasColumnName("website").HasMaxLength(500);
             entity.Property(e => e.Active).HasColumnName("active").HasDefaultValue(true);
+            entity.Property(e => e.IsBlocked).HasColumnName("is_blocked").HasDefaultValue(false);
+            entity.Property(e => e.IsBlacklisted).HasColumnName("is_blacklisted").HasDefaultValue(false);
+            entity.Property(e => e.BlacklistReason).HasColumnName("blacklist_reason").HasMaxLength(500);
+            entity.Property(e => e.BlockedBy).HasColumnName("blocked_by");
+            entity.Property(e => e.BlockedAt).HasColumnName("blocked_at");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
             entity.Property(e => e.CreatedByAgentId).HasColumnName("created_by_agent_id");
-            
+
             entity.HasOne(e => e.CreatedByAgent)
                 .WithMany(a => a.CreatedBuilders)
                 .HasForeignKey(e => e.CreatedByAgentId)
@@ -237,9 +257,17 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(50);
             entity.Property(e => e.TotalTowers).HasColumnName("total_towers");
             entity.Property(e => e.TotalUnits).HasColumnName("total_units");
+            entity.Property(e => e.IsBlocked).HasColumnName("is_blocked").HasDefaultValue(false);
+            entity.Property(e => e.IsBlacklisted).HasColumnName("is_blacklisted").HasDefaultValue(false);
+            entity.Property(e => e.BlacklistReason).HasColumnName("blacklist_reason").HasMaxLength(500);
+            entity.Property(e => e.BlockedBy).HasColumnName("blocked_by");
+            entity.Property(e => e.BlockedAt).HasColumnName("blocked_at");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
             entity.Property(e => e.CreatedByAgentId).HasColumnName("created_by_agent_id");
-            
+
             entity.HasOne(e => e.Builder)
                 .WithMany(b => b.Projects)
                 .HasForeignKey(e => e.BuilderId)
@@ -309,9 +337,21 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Utilities).HasColumnName("utilities").HasColumnType("jsonb").HasDefaultValue("{}");
             entity.Property(e => e.IsPublished).HasColumnName("is_published").HasDefaultValue(false);
             entity.Property(e => e.IsFeatured).HasColumnName("is_featured").HasDefaultValue(false);
+            entity.Property(e => e.ApprovalStatus).HasColumnName("approval_status").HasMaxLength(50).HasDefaultValue("draft");
+            entity.Property(e => e.RejectionReason).HasColumnName("rejection_reason").HasMaxLength(1000);
+            entity.Property(e => e.ReviewedBy).HasColumnName("reviewed_by");
+            entity.Property(e => e.ReviewedAt).HasColumnName("reviewed_at");
+            entity.Property(e => e.SubmittedAt).HasColumnName("submitted_at");
+            entity.Property(e => e.IsFlagged).HasColumnName("is_flagged").HasDefaultValue(false);
+            entity.Property(e => e.FlagReason).HasColumnName("flag_reason").HasMaxLength(500);
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+            entity.Property(e => e.DeletedBy).HasColumnName("deleted_by");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
-            
+
+            entity.HasIndex(e => e.ApprovalStatus);
+
             entity.HasOne(e => e.Agent)
                 .WithMany(a => a.Properties)
                 .HasForeignKey(e => e.AgentId)
@@ -357,9 +397,24 @@ public class AppDbContext : DbContext
             entity.Property(e => e.AgencyName).HasColumnName("agency_name").HasMaxLength(200);
             entity.Property(e => e.ExperienceYears).HasColumnName("experience_years");
             entity.Property(e => e.Rating).HasColumnName("rating").HasPrecision(2, 1);
+            entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(50).HasDefaultValue("pending");
+            entity.Property(e => e.VerificationNotes).HasColumnName("verification_notes").HasMaxLength(1000);
+            entity.Property(e => e.VerifiedBy).HasColumnName("verified_by");
+            entity.Property(e => e.VerifiedAt).HasColumnName("verified_at");
+            entity.Property(e => e.IdProofUrl).HasColumnName("id_proof_url").HasMaxLength(1000);
+            entity.Property(e => e.CompanyDetails).HasColumnName("company_details").HasColumnType("jsonb").HasDefaultValue("{}");
+            entity.Property(e => e.IsBlocked).HasColumnName("is_blocked").HasDefaultValue(false);
+            entity.Property(e => e.IsBlacklisted).HasColumnName("is_blacklisted").HasDefaultValue(false);
+            entity.Property(e => e.BlacklistReason).HasColumnName("blacklist_reason").HasMaxLength(500);
+            entity.Property(e => e.BlockedBy).HasColumnName("blocked_by");
+            entity.Property(e => e.BlockedAt).HasColumnName("blocked_at");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("NOW()");
-            
+
+            entity.HasIndex(e => e.Status);
+
             entity.HasOne(e => e.User)
                 .WithOne()
                 .HasForeignKey<Agent>(e => e.UserId)
@@ -465,6 +520,35 @@ public class AppDbContext : DbContext
                 .WithMany(p => p.Inquiries)
                 .HasForeignKey(e => e.PropertyId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ========================================
+        // ADMIN / AUDIT CONFIGURATIONS
+        // ========================================
+
+        // AuditLog configuration
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.ToTable("audit_logs");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.EntityType, e.EntityId });
+            entity.HasIndex(e => e.PerformedBy);
+            entity.HasIndex(e => e.Action);
+            entity.HasIndex(e => e.CreatedAt);
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Action).HasColumnName("action").HasMaxLength(100).IsRequired();
+            entity.Property(e => e.EntityType).HasColumnName("entity_type").HasMaxLength(50).IsRequired();
+            entity.Property(e => e.EntityId).HasColumnName("entity_id").IsRequired();
+            entity.Property(e => e.PerformedBy).HasColumnName("performed_by").IsRequired();
+            entity.Property(e => e.Details).HasColumnName("details").HasColumnType("jsonb").HasDefaultValue("{}");
+            entity.Property(e => e.IpAddress).HasColumnName("ip_address").HasMaxLength(45);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
+
+            entity.HasOne(e => e.PerformedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.PerformedBy)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // Seed default roles
@@ -595,6 +679,46 @@ public class AppDbContext : DbContext
                 Code = "SETTINGS",
                 Name = "System Settings",
                 Description = "Configure system-wide settings and preferences",
+                IsActive = true,
+                CreatedAt = seedDate,
+                UpdatedAt = seedDate
+            },
+            new Module
+            {
+                Id = Guid.Parse("10000000-0000-0000-0000-000000000007"),
+                Code = "BLACKLIST",
+                Name = "Blacklist Management",
+                Description = "Manage blacklisted entities (users, agents, builders)",
+                IsActive = true,
+                CreatedAt = seedDate,
+                UpdatedAt = seedDate
+            },
+            new Module
+            {
+                Id = Guid.Parse("10000000-0000-0000-0000-000000000008"),
+                Code = "AUDIT_LOGS",
+                Name = "Audit Logs",
+                Description = "View system audit logs and activity trail",
+                IsActive = true,
+                CreatedAt = seedDate,
+                UpdatedAt = seedDate
+            },
+            new Module
+            {
+                Id = Guid.Parse("10000000-0000-0000-0000-000000000009"),
+                Code = "REPORTS",
+                Name = "Reports & Export",
+                Description = "Generate and export reports",
+                IsActive = true,
+                CreatedAt = seedDate,
+                UpdatedAt = seedDate
+            },
+            new Module
+            {
+                Id = Guid.Parse("10000000-0000-0000-0000-00000000000a"),
+                Code = "APPROVALS",
+                Name = "Approvals",
+                Description = "Manage approval workflows for agents and properties",
                 IsActive = true,
                 CreatedAt = seedDate,
                 UpdatedAt = seedDate

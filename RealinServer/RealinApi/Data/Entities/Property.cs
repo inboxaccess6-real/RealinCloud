@@ -68,7 +68,23 @@ public class Property
     // Flags
     public bool IsPublished { get; set; } = false;
     public bool IsFeatured { get; set; } = false;
-    
+
+    // Approval workflow
+    public string ApprovalStatus { get; set; } = "draft"; // draft / submitted / under_review / approved / rejected
+    public string? RejectionReason { get; set; }
+    public Guid? ReviewedBy { get; set; }
+    public DateTime? ReviewedAt { get; set; }
+    public DateTime? SubmittedAt { get; set; }
+
+    // Content moderation
+    public bool IsFlagged { get; set; } = false;
+    public string? FlagReason { get; set; }
+
+    // Soft delete
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    public Guid? DeletedBy { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     

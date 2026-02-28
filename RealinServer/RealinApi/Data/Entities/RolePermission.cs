@@ -35,6 +35,11 @@ public class RolePermission
     /// Special administrative privileges (e.g., approve, publish, manage settings)
     /// </summary>
     public bool CanManage { get; set; } = false;
+
+    /// <summary>
+    /// Can export data from this module (CSV, Excel)
+    /// </summary>
+    public bool CanExport { get; set; } = false;
     
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

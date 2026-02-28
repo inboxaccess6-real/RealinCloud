@@ -1,0 +1,953 @@
+@page "/properties/create"
+@page "/properties/{Id:guid}/edit"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using Microsoft.AspNetCore.Components.Forms
+@using RealEstate.Application.DTOs.Media
+@using RealEstate.Application.DTOs.Properties
+@using RealEstate.Application.DTOs.Agents
+@using RealEstate.Application.DTOs.Projects
+@using RealEstate.Application.DTOs.Common
+
+@inject PropertyService PropertyService
+@inject AgentService AgentService
+@inject ProjectService ProjectService
+@inject ApiClient ApiClient
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+@inject AdminAuthStateProvider AuthStateProvider
+
+<div class="page-header">
+    <div style="display: flex; align-items: center; gap: 1rem;">
+        <button class="btn btn-ghost btn-sm" @onclick="GoBack">&larr; Back</button>
+        <h1 class="page-title">@(_isEditMode ? "Edit Property" : "Create Property")</h1>
+    </div>
+</div>
+
+@if (_isLoading)
+{
+    <div style="display: flex; justify-content: center; padding: 4rem;">
+        <div class="spinner"></div>
+    </div>
+}
+else
+{
+    <EditForm Model="_model" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+
+        <!-- Basic Info -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Basic Information</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                    @FormField("Title *", () =>
+                        @<input type="text" @bind="_model.Title" class="form-control" required />
+                    )
+                    @FormField("Listing Type *", () =>
+                        @<select @bind="_model.ListingType" class="form-control" required>
+                            <option value="">Select...</option>
+                            <option value="sale">Sale</option>
+                            <option value="rent">Rent</option>
+                            <option value="pg">PG</option>
+                        </select>
+                    )
+                    @FormField("Listing Category *", () =>
+                        @<select @bind="_model.ListingCategory" class="form-control" required>
+                            <option value="">Select...</option>
+                            <option value="residential">Residential</option>
+                            <option value="commercial">Commercial</option>
+                            <option value="land">Land</option>
+                        </select>
+                    )
+                    @FormField("Property Type *", () =>
+                        @<select @bind="_model.PropertyType" class="form-control" required>
+                            <option value="">Select...</option>
+                            <option value="apartment">Apartment</option>
+                            <option value="independent_house">Independent House</option>
+                            <option value="villa">Villa</option>
+                            <option value="plot">Plot</option>
+                            <option value="penthouse">Penthouse</option>
+                            <option value="studio">Studio</option>
+                            <option value="farmhouse">Farmhouse</option>
+                            <option value="office">Office</option>
+                            <option value="shop">Shop</option>
+                            <option value="warehouse">Warehouse</option>
+                        </select>
+                    )
+                    @FormField("Construction Status *", () =>
+                        @<select @bind="_model.ConstructionStatus" class="form-control" required>
+                            <option value="">Select...</option>
+                            <option value="ready_to_move">Ready to Move</option>
+                            <option value="under_construction">Under Construction</option>
+                            <option value="new_launch">New Launch</option>
+                        </select>
+                    )
+                    @FormField("Facing *", () =>
+                        @<select @bind="_model.Facing" class="form-control" required>
+                            <option value="">Select...</option>
+                            <option value="north">North</option>
+                            <option value="south">South</option>
+                            <option value="east">East</option>
+                            <option value="west">West</option>
+                            <option value="north_east">North East</option>
+                            <option value="north_west">North West</option>
+                            <option value="south_east">South East</option>
+                            <option value="south_west">South West</option>
+                        </select>
+                    )
+                    @FormField("RERA ID", () =>
+                        @<input type="text" @bind="_model.ReraId" class="form-control" />
+                    )
+                    @FormField("Available From", () =>
+                        @<input type="date" @bind="_model.AvailableFrom" class="form-control" />
+                    )
+                </div>
+            </div>
+        </div>
+
+        <!-- Agent / Project -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Agent & Project</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                    @FormField("Agent *", () =>
+                        @<select @bind="_model.AgentIdText" class="form-control" required disabled="@_isCurrentUserAgent">
+                            <option value="">Select an agent...</option>
+                            @foreach (var agent in _agents)
+                            {
+                                var label = agent.User?.Name ?? "Unknown";
+                                var detail = agent.User?.Email ?? agent.User?.PhoneNumber ?? agent.AgencyName ?? "";
+                                <option value="@agent.Id">@label @(string.IsNullOrEmpty(detail) ? "" : $"({detail})")</option>
+                            }
+                        </select>
+                    )
+                    @FormField("Project", () =>
+                        @<select value="@_model.ProjectIdText" @onchange="OnProjectChanged" class="form-control">
+                            <option value="">None</option>
+                            @foreach (var project in _projects)
+                            {
+                                var detail = project.Builder?.Name ?? project.City ?? "";
+                                <option value="@project.Id">@project.Name @(string.IsNullOrEmpty(detail) ? "" : $"({detail})")</option>
+                            }
+                        </select>
+                    )
+                </div>
+                @if (_selectedProject is not null)
+                {
+                    <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                        @if (HasProjectAddress(_selectedProject))
+                        {
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" checked="@_useProjectAddress" @onchange="OnUseProjectAddressChanged" />
+                                <span style="font-size: 0.9em;">Use project address for this property</span>
+                                <span style="font-size: 0.8em; color: var(--color-text-muted, #64748b);">
+                                    (@FormatProjectAddress(_selectedProject))
+                                </span>
+                            </label>
+                        }
+                        @if (_selectedProject.PossessionDate.HasValue)
+                        {
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" checked="@_useProjectPossessionDate" @onchange="OnUseProjectPossessionDateChanged" />
+                                <span style="font-size: 0.9em;">Use project possession date as Available From</span>
+                                <span style="font-size: 0.8em; color: var(--color-text-muted, #64748b);">
+                                    (@_selectedProject.PossessionDate.Value.ToString("dd/MM/yyyy"))
+                                </span>
+                            </label>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Location -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Location</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                    @FormField("Address", () =>
+                        @<input type="text" @bind="_model.Address" class="form-control" />
+                    )
+                    @FormField("Locality", () =>
+                        @<input type="text" @bind="_model.Locality" class="form-control" />
+                    )
+                    @FormField("City", () =>
+                        @<input type="text" @bind="_model.City" class="form-control" />
+                    )
+                    @FormField("Pin Code", () =>
+                        @<input type="text" @bind="_model.PinCode" class="form-control" />
+                    )
+                    @FormField("Landmark", () =>
+                        @<input type="text" @bind="_model.Landmark" class="form-control" />
+                    )
+                    @FormField("Latitude", () =>
+                        @<input type="number" step="any" @bind="_model.Latitude" class="form-control" />
+                    )
+                    @FormField("Longitude", () =>
+                        @<input type="number" step="any" @bind="_model.Longitude" class="form-control" />
+                    )
+                </div>
+            </div>
+        </div>
+
+        <!-- Pricing -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Pricing</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                    @FormField("Price (INR) *", () =>
+                        @<input type="number" step="0.01" @bind="_model.Price" class="form-control" required />
+                    )
+                    @FormField("Currency", () =>
+                        @<input type="text" @bind="_model.Currency" class="form-control" />
+                    )
+                    @FormField("Monthly Rent", () =>
+                        @<input type="number" step="0.01" @bind="_model.MonthlyRent" class="form-control" />
+                    )
+                    @FormField("Security Deposit", () =>
+                        @<input type="number" step="0.01" @bind="_model.SecurityDeposit" class="form-control" />
+                    )
+                    @FormField("Maintenance Charges", () =>
+                        @<input type="number" step="0.01" @bind="_model.MaintenanceCharges" class="form-control" />
+                    )
+                    @FormField("Price Negotiable", () =>
+                        @<select @bind="_model.PriceNegotiable" class="form-control">
+                            <option value="">Select...</option>
+                            <option value="True">Yes</option>
+                            <option value="False">No</option>
+                        </select>
+                    )
+                </div>
+            </div>
+        </div>
+
+        <!-- Dimensions -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Dimensions</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                    @FormField("Carpet Area (sq.ft)", () =>
+                        @<input type="number" step="0.01" @bind="_model.CarpetArea" class="form-control" />
+                    )
+                    @FormField("Built-up Area (sq.ft)", () =>
+                        @<input type="number" step="0.01" @bind="_model.BuiltupArea" class="form-control" />
+                    )
+                    @FormField("Super Built-up Area (sq.ft)", () =>
+                        @<input type="number" step="0.01" @bind="_model.SuperBuiltupArea" class="form-control" />
+                    )
+                    @FormField("Floor Number", () =>
+                        @<input type="number" @bind="_model.FloorNumber" class="form-control" />
+                    )
+                    @FormField("Total Floors", () =>
+                        @<input type="number" @bind="_model.TotalFloors" class="form-control" />
+                    )
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Configuration</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                    @FormField("Bedrooms", () =>
+                        @<input type="number" @bind="_model.Bedrooms" class="form-control" />
+                    )
+                    @FormField("Bathrooms", () =>
+                        @<input type="number" @bind="_model.Bathrooms" class="form-control" />
+                    )
+                    @FormField("Balconies", () =>
+                        @<input type="number" @bind="_model.Balconies" class="form-control" />
+                    )
+                    @FormField("Furnishing Status", () =>
+                        @<select @bind="_model.FurnishingStatus" class="form-control">
+                            <option value="">Select...</option>
+                            <option value="furnished">Furnished</option>
+                            <option value="semi_furnished">Semi Furnished</option>
+                            <option value="unfurnished">Unfurnished</option>
+                        </select>
+                    )
+                    @FormField("Property Age (years)", () =>
+                        @<input type="number" @bind="_model.PropertyAge" class="form-control" />
+                    )
+                    @FormField("Ownership Type", () =>
+                        @<select @bind="_model.OwnershipType" class="form-control">
+                            <option value="">Select...</option>
+                            <option value="freehold">Freehold</option>
+                            <option value="leasehold">Leasehold</option>
+                            <option value="cooperative">Co-operative</option>
+                        </select>
+                    )
+                    @FormField("Loan Available", () =>
+                        @<select @bind="_model.LoanAvailable" class="form-control">
+                            <option value="">Select...</option>
+                            <option value="True">Yes</option>
+                            <option value="False">No</option>
+                        </select>
+                    )
+                </div>
+            </div>
+        </div>
+
+        <!-- Media -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Media</h3>
+            </div>
+            <div class="card-body">
+                <!-- Image Upload -->
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.5rem; font-weight: 600;">
+                        Images & Videos
+                    </label>
+
+                    @if (_isUploadingMedia)
+                    {
+                        <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0;">
+                            <div class="spinner" style="width: 20px; height: 20px;"></div>
+                            <span style="color: var(--color-text-muted, #64748b);">Uploading...</span>
+                        </div>
+                    }
+
+                    @* Show existing uploaded media (edit mode) *@
+                    @if (_mediaFiles.Count > 0)
+                    {
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; margin-bottom: 1rem;">
+                            @foreach (var media in _mediaFiles)
+                            {
+                                <div style="position: relative; border-radius: 8px; overflow: hidden; aspect-ratio: 4/3; background: var(--color-bg-secondary, #f1f5f9);">
+                                    @if (IsVideo(media.ContentType))
+                                    {
+                                        <video src="@ApiClient.ResolveMediaUrl(media.Url)" style="width: 100%; height: 100%; object-fit: cover;" preload="metadata"></video>
+                                    }
+                                    else
+                                    {
+                                        <img src="@ApiClient.ResolveMediaUrl(media.Url)" alt="Property image" style="width: 100%; height: 100%; object-fit: cover;" />
+                                    }
+                                    <button type="button" class="btn btn-danger btn-sm"
+                                            style="position: absolute; top: 0.25rem; right: 0.25rem; padding: 0.1rem 0.4rem; font-size: 0.8rem; min-width: auto; line-height: 1.2;"
+                                            @onclick="@(() => RemoveUploadedMedia(media))">
+                                        &times;
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    @* Show pending files (create mode) *@
+                    @if (_pendingFiles.Count > 0)
+                    {
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;">
+                            @for (var i = 0; i < _pendingFiles.Count; i++)
+                            {
+                                var index = i;
+                                var file = _pendingFiles[index];
+                                <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.75rem; background: var(--color-bg-secondary, #f1f5f9); border-radius: 6px; font-size: 0.85em;">
+                                    <span style="color: var(--color-text-muted, #64748b); font-size: 0.85em;">@(IsVideo(file.ContentType) ? "[Video]" : "[Image]")</span>
+                                    <span>@file.Name</span>
+                                    <span style="color: var(--color-text-muted, #64748b);">(@FormatFileSize(file.Size))</span>
+                                    <button type="button" style="background: none; border: none; color: var(--color-danger, #ef4444); cursor: pointer; padding: 0 0.25rem; font-size: 1.1em; line-height: 1;"
+                                            @onclick="@(() => RemovePendingFile(index))">
+                                        &times;
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <label class="btn btn-ghost btn-sm" style="cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem;">
+                        Choose Files
+                        <InputFile OnChange="OnImagesSelected" multiple accept="image/*,video/*" style="display: none;" />
+                    </label>
+                    @if (!_isEditMode)
+                    {
+                        <span style="font-size: 0.8em; color: var(--color-text-muted, #64748b); margin-left: 0.5rem;">Files will be uploaded after the property is created.</span>
+                    }
+                </div>
+
+                <div style="font-size: 0.8em; color: var(--color-text-muted, #64748b); margin-top: 0.5rem;">
+                    Supported: JPG, PNG, GIF, WebP, MP4, MOV, WebM (max 100 MB per file)
+                </div>
+            </div>
+        </div>
+
+        <!-- Features -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Features</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
+                    @FormField("Amenities (comma-separated)", () =>
+                        @<input type="text" @bind="_model.Amenities" class="form-control" placeholder="e.g. Swimming Pool, Gym, Parking" />
+                    )
+                    @FormField("Interior Features (comma-separated)", () =>
+                        @<input type="text" @bind="_model.InteriorFeatures" class="form-control" placeholder="e.g. Modular Kitchen, Wooden Flooring" />
+                    )
+                    @FormField("Utilities (comma-separated)", () =>
+                        @<input type="text" @bind="_model.Utilities" class="form-control" placeholder="e.g. Power Backup, Water Supply, Gas Pipeline" />
+                    )
+                </div>
+            </div>
+        </div>
+
+        <!-- Publishing -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Publishing</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: flex; gap: 2rem;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" @bind="_model.IsPublished" />
+                        Published
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" @bind="_model.IsFeatured" />
+                        Featured
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit -->
+        <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+            <button type="submit" class="btn btn-primary" disabled="@_isSaving">
+                @(_isSaving ? "Saving..." : "Save")
+            </button>
+            <button type="button" class="btn btn-ghost" @onclick="GoBack">Cancel</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public Guid? Id { get; set; }
+
+    private bool _isEditMode => Id.HasValue;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _isUploadingMedia;
+    private bool _isCurrentUserAgent;
+    private PropertyFormModel _model = new();
+    private List<MediaResponse> _mediaFiles = new();
+    private List<IBrowserFile> _pendingFiles = new();
+    private List<AgentResponse> _agents = new();
+    private List<ProjectResponse> _projects = new();
+    private ProjectResponse? _selectedProject;
+    private bool _useProjectAddress;
+    private bool _useProjectPossessionDate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load agents and projects for dropdowns
+        var agentsTask = AgentService.GetAgentsAsync(1, 500, "approved");
+        var projectsTask = ProjectService.GetProjectsAsync(1, 500);
+
+        await Task.WhenAll(agentsTask, projectsTask);
+
+        var agentsResult = await agentsTask;
+        if (agentsResult.Success && agentsResult.Data is not null)
+            _agents = agentsResult.Data.Items;
+
+        var projectsResult = await projectsTask;
+        if (projectsResult.Success && projectsResult.Data is not null)
+            _projects = projectsResult.Data.Items;
+
+        // If current user is an Agent, auto-select their agent record
+        var currentUser = AuthStateProvider.CurrentUser;
+        if (currentUser is not null && string.Equals(currentUser.Role, "Agent", StringComparison.OrdinalIgnoreCase))
+        {
+            var agentResult = await AgentService.GetAgentByUserIdAsync(currentUser.Id);
+            if (agentResult.Success && agentResult.Data is not null)
+            {
+                _model.AgentIdText = agentResult.Data.Id.ToString();
+                _isCurrentUserAgent = true;
+            }
+        }
+
+        if (_isEditMode)
+        {
+            var result = await PropertyService.GetPropertyByIdAsync(Id!.Value);
+            if (result.Success && result.Data is not null)
+            {
+                _model = PropertyFormModel.FromResponse(result.Data);
+
+                // Re-apply agent lock for agent users in edit mode
+                if (_isCurrentUserAgent && currentUser is not null)
+                {
+                    var agentResult = await AgentService.GetAgentByUserIdAsync(currentUser.Id);
+                    if (agentResult.Success && agentResult.Data is not null)
+                        _model.AgentIdText = agentResult.Data.Id.ToString();
+                }
+
+                // Set selected project for address auto-fill
+                if (result.Data.ProjectId.HasValue)
+                {
+                    _selectedProject = _projects.FirstOrDefault(p => p.Id == result.Data.ProjectId.Value);
+                }
+
+                var mediaResult = await PropertyService.GetMediaAsync(Id!.Value);
+                if (mediaResult.Success && mediaResult.Data is not null)
+                {
+                    _mediaFiles = mediaResult.Data;
+                }
+            }
+            else
+            {
+                ToastService.ShowError(result.Error ?? "Failed to load property.");
+                NavigationManager.NavigateTo("/properties");
+                return;
+            }
+        }
+
+        _isLoading = false;
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (string.IsNullOrWhiteSpace(_model.Title) || string.IsNullOrWhiteSpace(_model.ListingType)
+            || string.IsNullOrWhiteSpace(_model.ListingCategory) || string.IsNullOrWhiteSpace(_model.PropertyType)
+            || string.IsNullOrWhiteSpace(_model.ConstructionStatus) || string.IsNullOrWhiteSpace(_model.Facing)
+            || _model.Price <= 0)
+        {
+            ToastService.ShowError("Please fill in all required fields.");
+            return;
+        }
+
+        if (!Guid.TryParse(_model.AgentIdText, out var agentId))
+        {
+            ToastService.ShowError("Please enter a valid Agent ID.");
+            return;
+        }
+
+        Guid? projectId = null;
+        if (!string.IsNullOrWhiteSpace(_model.ProjectIdText))
+        {
+            if (Guid.TryParse(_model.ProjectIdText, out var pid))
+                projectId = pid;
+            else
+            {
+                ToastService.ShowError("Please enter a valid Project ID.");
+                return;
+            }
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            if (_isEditMode)
+            {
+                var request = new UpdatePropertyRequest(
+                    Title: _model.Title,
+                    ListingType: _model.ListingType,
+                    ListingCategory: _model.ListingCategory,
+                    PropertyType: _model.PropertyType,
+                    ConstructionStatus: _model.ConstructionStatus,
+                    Facing: _model.Facing,
+                    Price: _model.Price,
+                    ProjectId: projectId,
+                    ReraId: _model.ReraId,
+                    AvailableFrom: _model.AvailableFrom,
+                    Address: _model.Address,
+                    Locality: _model.Locality,
+                    City: _model.City,
+                    PinCode: _model.PinCode,
+                    Landmark: _model.Landmark,
+                    Latitude: _model.Latitude,
+                    Longitude: _model.Longitude,
+                    FloorNumber: _model.FloorNumber,
+                    TotalFloors: _model.TotalFloors,
+                    Currency: _model.Currency,
+                    MonthlyRent: _model.MonthlyRent,
+                    SecurityDeposit: _model.SecurityDeposit,
+                    MaintenanceCharges: _model.MaintenanceCharges,
+                    PriceNegotiable: _model.PriceNegotiable,
+                    CarpetArea: _model.CarpetArea,
+                    BuiltupArea: _model.BuiltupArea,
+                    SuperBuiltupArea: _model.SuperBuiltupArea,
+                    Bedrooms: _model.Bedrooms,
+                    Bathrooms: _model.Bathrooms,
+                    Balconies: _model.Balconies,
+                    FurnishingStatus: NullIfEmpty(_model.FurnishingStatus),
+                    PropertyAge: _model.PropertyAge,
+                    OwnershipType: NullIfEmpty(_model.OwnershipType),
+                    LoanAvailable: _model.LoanAvailable,
+                    VideoUrl: NullIfEmpty(_model.VideoUrl),
+                    ImageUrl: NullIfEmpty(_model.ImageUrl),
+                    Amenities: NullIfEmpty(_model.Amenities),
+                    InteriorFeatures: NullIfEmpty(_model.InteriorFeatures),
+                    Utilities: NullIfEmpty(_model.Utilities),
+                    IsPublished: _model.IsPublished,
+                    IsFeatured: _model.IsFeatured
+                );
+
+                var result = await PropertyService.UpdatePropertyAsync(Id!.Value, request);
+                if (result.Success)
+                {
+                    ToastService.ShowSuccess("Property updated successfully.");
+                    NavigationManager.NavigateTo($"/properties/{Id!.Value}");
+                }
+                else
+                {
+                    ToastService.ShowError(result.Error ?? "Failed to update property.");
+                }
+            }
+            else
+            {
+                var request = new CreatePropertyRequest(
+                    Title: _model.Title!,
+                    ListingType: _model.ListingType!,
+                    ListingCategory: _model.ListingCategory!,
+                    PropertyType: _model.PropertyType!,
+                    ConstructionStatus: _model.ConstructionStatus!,
+                    Facing: _model.Facing!,
+                    Price: _model.Price,
+                    AgentId: agentId,
+                    ProjectId: projectId,
+                    ReraId: NullIfEmpty(_model.ReraId),
+                    AvailableFrom: _model.AvailableFrom,
+                    Address: NullIfEmpty(_model.Address),
+                    Locality: NullIfEmpty(_model.Locality),
+                    City: NullIfEmpty(_model.City),
+                    PinCode: NullIfEmpty(_model.PinCode),
+                    Landmark: NullIfEmpty(_model.Landmark),
+                    Latitude: _model.Latitude,
+                    Longitude: _model.Longitude,
+                    FloorNumber: _model.FloorNumber,
+                    TotalFloors: _model.TotalFloors,
+                    Currency: _model.Currency ?? "INR",
+                    MonthlyRent: _model.MonthlyRent,
+                    SecurityDeposit: _model.SecurityDeposit,
+                    MaintenanceCharges: _model.MaintenanceCharges,
+                    PriceNegotiable: _model.PriceNegotiable,
+                    CarpetArea: _model.CarpetArea,
+                    BuiltupArea: _model.BuiltupArea,
+                    SuperBuiltupArea: _model.SuperBuiltupArea,
+                    Bedrooms: _model.Bedrooms,
+                    Bathrooms: _model.Bathrooms,
+                    Balconies: _model.Balconies,
+                    FurnishingStatus: NullIfEmpty(_model.FurnishingStatus),
+                    PropertyAge: _model.PropertyAge,
+                    OwnershipType: NullIfEmpty(_model.OwnershipType),
+                    LoanAvailable: _model.LoanAvailable,
+                    VideoUrl: NullIfEmpty(_model.VideoUrl),
+                    ImageUrl: NullIfEmpty(_model.ImageUrl),
+                    Amenities: NullIfEmpty(_model.Amenities),
+                    InteriorFeatures: NullIfEmpty(_model.InteriorFeatures),
+                    Utilities: NullIfEmpty(_model.Utilities),
+                    IsPublished: _model.IsPublished,
+                    IsFeatured: _model.IsFeatured
+                );
+
+                var result = await PropertyService.CreatePropertyAsync(request);
+                if (result.Success && result.Data is not null)
+                {
+                    // Upload pending images
+                    if (_pendingFiles.Count > 0)
+                    {
+                        await UploadPendingFiles(result.Data.Id);
+                    }
+
+                    ToastService.ShowSuccess("Property created successfully.");
+                    NavigationManager.NavigateTo($"/properties/{result.Data.Id}");
+                }
+                else
+                {
+                    ToastService.ShowError(result.Error ?? "Failed to create property.");
+                }
+            }
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private static string? NullIfEmpty(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    private static RenderFragment FormField(string label, Func<RenderFragment> input) => __builder =>
+    {
+        <div>
+            <label style="display: block; font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem; font-weight: 600;">
+                @label
+            </label>
+            @input()
+        </div>
+    };
+
+    private async Task OnImagesSelected(InputFileChangeEventArgs e)
+    {
+        if (_isEditMode)
+        {
+            // In edit mode, upload immediately
+            _isUploadingMedia = true;
+            StateHasChanged();
+
+            var maxFileSize = 100 * 1024 * 1024;
+            foreach (var file in e.GetMultipleFiles(10))
+            {
+                try
+                {
+                    await using var stream = file.OpenReadStream(maxFileSize);
+                    var result = await PropertyService.UploadMediaAsync(
+                        Id!.Value, stream, file.Name, file.ContentType);
+
+                    if (result.Success && result.Data is not null)
+                    {
+                        _mediaFiles.Insert(0, result.Data);
+                    }
+                    else
+                    {
+                        ToastService.ShowError(result.Error ?? $"Failed to upload {file.Name}.");
+                    }
+                }
+                catch
+                {
+                    ToastService.ShowError($"Failed to upload {file.Name}. File may be too large (max 100 MB).");
+                }
+            }
+
+            _isUploadingMedia = false;
+            StateHasChanged();
+        }
+        else
+        {
+            // In create mode, queue files for upload after property creation
+            foreach (var file in e.GetMultipleFiles(10))
+            {
+                _pendingFiles.Add(file);
+            }
+        }
+    }
+
+    private async Task UploadPendingFiles(Guid propertyId)
+    {
+        _isUploadingMedia = true;
+        StateHasChanged();
+
+        var maxFileSize = 10 * 1024 * 1024;
+        foreach (var file in _pendingFiles)
+        {
+            try
+            {
+                await using var stream = file.OpenReadStream(maxFileSize);
+                await PropertyService.UploadMediaAsync(propertyId, stream, file.Name, file.ContentType);
+            }
+            catch
+            {
+                ToastService.ShowError($"Failed to upload {file.Name}.");
+            }
+        }
+
+        _pendingFiles.Clear();
+        _isUploadingMedia = false;
+    }
+
+    private async Task RemoveUploadedMedia(MediaResponse media)
+    {
+        var result = await PropertyService.DeleteMediaAsync(media.Id);
+        if (result.Success)
+        {
+            _mediaFiles.Remove(media);
+            ToastService.ShowSuccess("Image deleted.");
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to delete image.");
+        }
+    }
+
+    private void RemovePendingFile(int index)
+    {
+        if (index >= 0 && index < _pendingFiles.Count)
+        {
+            _pendingFiles.RemoveAt(index);
+        }
+    }
+
+    private static bool IsVideo(string? contentType)
+        => contentType?.StartsWith("video/", StringComparison.OrdinalIgnoreCase) == true;
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes >= 1_048_576) return $"{bytes / 1_048_576.0:F1} MB";
+        if (bytes >= 1024) return $"{bytes / 1024.0:F0} KB";
+        return $"{bytes} B";
+    }
+
+    private void OnProjectChanged(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        _model.ProjectIdText = value;
+        _useProjectAddress = false;
+        _useProjectPossessionDate = false;
+
+        if (Guid.TryParse(value, out var projectId))
+        {
+            _selectedProject = _projects.FirstOrDefault(p => p.Id == projectId);
+
+            // Auto-fill AvailableFrom from project's PossessionDate if available
+            if (_selectedProject?.PossessionDate.HasValue == true)
+            {
+                _model.AvailableFrom = _selectedProject.PossessionDate.Value;
+                _useProjectPossessionDate = true;
+            }
+        }
+        else
+        {
+            _selectedProject = null;
+        }
+    }
+
+    private void OnUseProjectAddressChanged(ChangeEventArgs e)
+    {
+        _useProjectAddress = e.Value is true;
+
+        if (_useProjectAddress && _selectedProject is not null)
+        {
+            _model.Address = _selectedProject.Address;
+            _model.Locality = _selectedProject.Locality;
+            _model.City = _selectedProject.City;
+            _model.PinCode = _selectedProject.PinCode;
+            _model.Landmark = _selectedProject.Landmark;
+            _model.Latitude = _selectedProject.Latitude;
+            _model.Longitude = _selectedProject.Longitude;
+        }
+    }
+
+    private void OnUseProjectPossessionDateChanged(ChangeEventArgs e)
+    {
+        _useProjectPossessionDate = e.Value is true;
+
+        if (_useProjectPossessionDate && _selectedProject?.PossessionDate.HasValue == true)
+        {
+            _model.AvailableFrom = _selectedProject.PossessionDate.Value;
+        }
+    }
+
+    private static bool HasProjectAddress(ProjectResponse project)
+        => !string.IsNullOrWhiteSpace(project.Address)
+           || !string.IsNullOrWhiteSpace(project.Locality)
+           || !string.IsNullOrWhiteSpace(project.City);
+
+    private static string FormatProjectAddress(ProjectResponse project)
+    {
+        var parts = new[] { project.Address, project.Locality, project.City, project.PinCode }
+            .Where(p => !string.IsNullOrWhiteSpace(p));
+        return string.Join(", ", parts);
+    }
+
+    private void GoBack()
+    {
+        if (_isEditMode)
+            NavigationManager.NavigateTo($"/properties/{Id}");
+        else
+            NavigationManager.NavigateTo("/properties");
+    }
+
+    private class PropertyFormModel
+    {
+        public string? Title { get; set; }
+        public string? ListingType { get; set; }
+        public string? ListingCategory { get; set; }
+        public string? PropertyType { get; set; }
+        public string? ConstructionStatus { get; set; }
+        public string? Facing { get; set; }
+        public decimal Price { get; set; }
+        public string? AgentIdText { get; set; }
+        public string? ProjectIdText { get; set; }
+        public string? ReraId { get; set; }
+        public DateTime? AvailableFrom { get; set; }
+        public string? Address { get; set; }
+        public string? Locality { get; set; }
+        public string? City { get; set; }
+        public string? PinCode { get; set; }
+        public string? Landmark { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public int? FloorNumber { get; set; }
+        public int? TotalFloors { get; set; }
+        public string? Currency { get; set; } = "INR";
+        public decimal? MonthlyRent { get; set; }
+        public decimal? SecurityDeposit { get; set; }
+        public decimal? MaintenanceCharges { get; set; }
+        public bool? PriceNegotiable { get; set; }
+        public decimal? CarpetArea { get; set; }
+        public decimal? BuiltupArea { get; set; }
+        public decimal? SuperBuiltupArea { get; set; }
+        public int? Bedrooms { get; set; }
+        public int? Bathrooms { get; set; }
+        public int? Balconies { get; set; }
+        public string? FurnishingStatus { get; set; }
+        public int? PropertyAge { get; set; }
+        public string? OwnershipType { get; set; }
+        public bool? LoanAvailable { get; set; }
+        public string? VideoUrl { get; set; }
+        public string? ImageUrl { get; set; }
+        public string? Amenities { get; set; }
+        public string? InteriorFeatures { get; set; }
+        public string? Utilities { get; set; }
+        public bool IsPublished { get; set; }
+        public bool IsFeatured { get; set; }
+
+        public static PropertyFormModel FromResponse(PropertyResponse p) => new()
+        {
+            Title = p.Title,
+            ListingType = p.ListingType,
+            ListingCategory = p.ListingCategory,
+            PropertyType = p.PropertyType,
+            ConstructionStatus = p.ConstructionStatus,
+            Facing = p.Facing,
+            Price = p.Price,
+            AgentIdText = p.AgentId.ToString(),
+            ProjectIdText = p.ProjectId?.ToString(),
+            ReraId = p.ReraId,
+            AvailableFrom = p.AvailableFrom,
+            Address = p.Address,
+            Locality = p.Locality,
+            City = p.City,
+            PinCode = p.PinCode,
+            Landmark = p.Landmark,
+            Latitude = p.Latitude,
+            Longitude = p.Longitude,
+            FloorNumber = p.FloorNumber,
+            TotalFloors = p.TotalFloors,
+            Currency = p.Currency,
+            MonthlyRent = p.MonthlyRent,
+            SecurityDeposit = p.SecurityDeposit,
+            MaintenanceCharges = p.MaintenanceCharges,
+            PriceNegotiable = p.PriceNegotiable,
+            CarpetArea = p.CarpetArea,
+            BuiltupArea = p.BuiltupArea,
+            SuperBuiltupArea = p.SuperBuiltupArea,
+            Bedrooms = p.Bedrooms,
+            Bathrooms = p.Bathrooms,
+            Balconies = p.Balconies,
+            FurnishingStatus = p.FurnishingStatus,
+            PropertyAge = p.PropertyAge,
+            OwnershipType = p.OwnershipType,
+            LoanAvailable = p.LoanAvailable,
+            VideoUrl = p.VideoUrl,
+            ImageUrl = p.ImageUrl,
+            Amenities = p.Amenities,
+            InteriorFeatures = p.InteriorFeatures,
+            Utilities = p.Utilities,
+            IsPublished = p.IsPublished,
+            IsFeatured = p.IsFeatured
+        };
+    }
+}

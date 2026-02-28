@@ -35,15 +35,61 @@ namespace RealinApi.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("agency_name");
 
+                    b.Property<string>("BlacklistReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("blacklist_reason");
+
+                    b.Property<DateTime?>("BlockedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("blocked_at");
+
+                    b.Property<Guid?>("BlockedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("blocked_by");
+
+                    b.Property<string>("CompanyDetails")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValue("{}")
+                        .HasColumnName("company_details");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("NOW()");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
                     b.Property<int?>("ExperienceYears")
                         .HasColumnType("integer")
                         .HasColumnName("experience_years");
+
+                    b.Property<string>("IdProofUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("id_proof_url");
+
+                    b.Property<bool>("IsBlacklisted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_blacklisted");
+
+                    b.Property<bool>("IsBlocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_blocked");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
 
                     b.Property<string>("LicenseNumber")
                         .HasMaxLength(100)
@@ -55,6 +101,14 @@ namespace RealinApi.Migrations
                         .HasColumnType("numeric(2,1)")
                         .HasColumnName("rating");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("pending")
+                        .HasColumnName("status");
+
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -65,15 +119,88 @@ namespace RealinApi.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
+                    b.Property<string>("VerificationNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("verification_notes");
+
+                    b.Property<DateTime?>("VerifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("verified_at");
+
+                    b.Property<Guid?>("VerifiedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("verified_by");
+
                     b.HasKey("Id");
 
                     b.HasIndex("LicenseNumber")
                         .IsUnique();
 
+                    b.HasIndex("Status");
+
                     b.HasIndex("UserId")
                         .IsUnique();
 
                     b.ToTable("agents", "realin");
+                });
+
+            modelBuilder.Entity("RealinApi.Data.Entities.AuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("action");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<string>("Details")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValue("{}")
+                        .HasColumnName("details");
+
+                    b.Property<Guid>("EntityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("entity_id");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("entity_type");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<Guid>("PerformedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("performed_by");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Action");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("PerformedBy");
+
+                    b.HasIndex("EntityType", "EntityId");
+
+                    b.ToTable("audit_logs", "realin");
                 });
 
             modelBuilder.Entity("RealinApi.Data.Entities.Builder", b =>
@@ -89,6 +216,19 @@ namespace RealinApi.Migrations
                         .HasDefaultValue(true)
                         .HasColumnName("active");
 
+                    b.Property<string>("BlacklistReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("blacklist_reason");
+
+                    b.Property<DateTime?>("BlockedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("blocked_at");
+
+                    b.Property<Guid?>("BlockedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("blocked_by");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -98,6 +238,10 @@ namespace RealinApi.Migrations
                     b.Property<Guid?>("CreatedByAgentId")
                         .HasColumnType("uuid")
                         .HasColumnName("created_by_agent_id");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
 
                     b.Property<string>("Email")
                         .HasMaxLength(255)
@@ -112,6 +256,24 @@ namespace RealinApi.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("headquarters_address");
+
+                    b.Property<bool>("IsBlacklisted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_blacklisted");
+
+                    b.Property<bool>("IsBlocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_blocked");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -128,6 +290,12 @@ namespace RealinApi.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("registration_number");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("NOW()");
 
                     b.Property<string>("Website")
                         .HasMaxLength(500)
@@ -470,6 +638,46 @@ namespace RealinApi.Migrations
                             IsActive = true,
                             Name = "System Settings",
                             UpdatedAt = new DateTime(2025, 11, 25, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000007"),
+                            Code = "BLACKLIST",
+                            CreatedAt = new DateTime(2025, 11, 25, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Manage blacklisted entities (users, agents, builders)",
+                            IsActive = true,
+                            Name = "Blacklist Management",
+                            UpdatedAt = new DateTime(2025, 11, 25, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000008"),
+                            Code = "AUDIT_LOGS",
+                            CreatedAt = new DateTime(2025, 11, 25, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "View system audit logs and activity trail",
+                            IsActive = true,
+                            Name = "Audit Logs",
+                            UpdatedAt = new DateTime(2025, 11, 25, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000009"),
+                            Code = "REPORTS",
+                            CreatedAt = new DateTime(2025, 11, 25, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Generate and export reports",
+                            IsActive = true,
+                            Name = "Reports & Export",
+                            UpdatedAt = new DateTime(2025, 11, 25, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-00000000000a"),
+                            Code = "APPROVALS",
+                            CreatedAt = new DateTime(2025, 11, 25, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Manage approval workflows for agents and properties",
+                            IsActive = true,
+                            Name = "Approvals",
+                            UpdatedAt = new DateTime(2025, 11, 25, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
                 });
 
@@ -547,6 +755,19 @@ namespace RealinApi.Migrations
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("address");
 
+                    b.Property<string>("BlacklistReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("blacklist_reason");
+
+                    b.Property<DateTime?>("BlockedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("blocked_at");
+
+                    b.Property<Guid?>("BlockedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("blocked_by");
+
                     b.Property<Guid>("BuilderId")
                         .HasColumnType("uuid")
                         .HasColumnName("builder_id");
@@ -570,6 +791,28 @@ namespace RealinApi.Migrations
                     b.Property<Guid?>("CreatedByAgentId")
                         .HasColumnType("uuid")
                         .HasColumnName("created_by_agent_id");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<bool>("IsBlacklisted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_blacklisted");
+
+                    b.Property<bool>("IsBlocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_blocked");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
 
                     b.Property<string>("Landmark")
                         .HasMaxLength(200)
@@ -626,6 +869,12 @@ namespace RealinApi.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("total_units");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("NOW()");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BuilderId");
@@ -661,6 +910,14 @@ namespace RealinApi.Migrations
                         .HasColumnType("jsonb")
                         .HasDefaultValue("{}")
                         .HasColumnName("amenities");
+
+                    b.Property<string>("ApprovalStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("draft")
+                        .HasColumnName("approval_status");
 
                     b.Property<DateTime?>("AvailableFrom")
                         .HasColumnType("timestamp with time zone")
@@ -713,11 +970,24 @@ namespace RealinApi.Migrations
                         .HasDefaultValue("INR")
                         .HasColumnName("currency");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
                     b.Property<string>("Facing")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("facing");
+
+                    b.Property<string>("FlagReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("flag_reason");
 
                     b.Property<int?>("FloorNumber")
                         .HasColumnType("integer")
@@ -740,11 +1010,23 @@ namespace RealinApi.Migrations
                         .HasDefaultValue("{}")
                         .HasColumnName("interior_features");
 
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
+
                     b.Property<bool>("IsFeatured")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("is_featured");
+
+                    b.Property<bool>("IsFlagged")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_flagged");
 
                     b.Property<bool>("IsPublished")
                         .ValueGeneratedOnAdd()
@@ -829,10 +1111,23 @@ namespace RealinApi.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("property_type");
 
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("rejection_reason");
+
                     b.Property<string>("ReraId")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("rera_id");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewed_by");
 
                     b.Property<decimal?>("SecurityDeposit")
                         .HasPrecision(18, 2)
@@ -846,6 +1141,10 @@ namespace RealinApi.Migrations
                         .HasColumnType("character varying(50)")
                         .HasDefaultValue("active")
                         .HasColumnName("status");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
 
                     b.Property<decimal?>("SuperBuiltupArea")
                         .HasPrecision(10, 2)
@@ -884,6 +1183,8 @@ namespace RealinApi.Migrations
 
                     b.HasIndex("AgentId");
 
+                    b.HasIndex("ApprovalStatus");
+
                     b.HasIndex("City");
 
                     b.HasIndex("IsFeatured");
@@ -918,7 +1219,7 @@ namespace RealinApi.Migrations
                         .HasColumnType("text")
                         .HasColumnName("device_info");
 
-                    b.Property<DateTime>("ExpiresAt")
+                    b.Property<DateTimeOffset>("ExpiresAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
 
@@ -1067,6 +1368,12 @@ namespace RealinApi.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("can_delete");
 
+                    b.Property<bool>("CanExport")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("can_export");
+
                     b.Property<bool>("CanManage")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -1124,11 +1431,32 @@ namespace RealinApi.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("BlacklistReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("blacklist_reason");
+
+                    b.Property<DateTime?>("BlockedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("blocked_at");
+
+                    b.Property<Guid?>("BlockedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("blocked_by");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("NOW()");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
 
                     b.Property<string>("Email")
                         .HasMaxLength(255)
@@ -1140,6 +1468,24 @@ namespace RealinApi.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(true)
                         .HasColumnName("is_active");
+
+                    b.Property<bool>("IsBlacklisted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_blacklisted");
+
+                    b.Property<bool>("IsBlocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_blocked");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
 
                     b.Property<string>("Name")
                         .HasMaxLength(255)
@@ -1197,6 +1543,17 @@ namespace RealinApi.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("RealinApi.Data.Entities.AuditLog", b =>
+                {
+                    b.HasOne("RealinApi.Data.Entities.User", "PerformedByUser")
+                        .WithMany()
+                        .HasForeignKey("PerformedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("PerformedByUser");
                 });
 
             modelBuilder.Entity("RealinApi.Data.Entities.Builder", b =>

@@ -1,0 +1,28 @@
+<select class="filter-select" value="@SelectedValue" @onchange="HandleChange">
+    <option value="">All @Label</option>
+    @foreach (var option in Options)
+    {
+        <option value="@option.Key">@option.Value</option>
+    }
+</select>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public Dictionary<string, string> Options { get; set; } = new();
+
+    [Parameter]
+    public string? SelectedValue { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> OnChanged { get; set; }
+
+    private async Task HandleChange(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        SelectedValue = string.IsNullOrEmpty(value) ? null : value;
+        await OnChanged.InvokeAsync(SelectedValue);
+    }
+}

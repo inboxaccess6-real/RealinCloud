@@ -14,8 +14,21 @@ public class Builder
     public string? HeadquartersAddress { get; set; }
     public string? Website { get; set; }
     public bool Active { get; set; } = true;
+
+    // Moderation
+    public bool IsBlocked { get; set; } = false;
+    public bool IsBlacklisted { get; set; } = false;
+    public string? BlacklistReason { get; set; }
+    public Guid? BlockedBy { get; set; }
+    public DateTime? BlockedAt { get; set; }
+
+    // Soft delete
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+
     public DateTime CreatedAt { get; set; }
-    
+    public DateTime UpdatedAt { get; set; }
+
     // Audit - track which agent created this builder
     public Guid? CreatedByAgentId { get; set; }
     

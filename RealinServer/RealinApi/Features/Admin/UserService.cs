@@ -92,10 +92,7 @@ public class UserService : IUserService
             user.PhoneNumber,
             user.Name,
             user.Provider,
-            user.OAuthProviderId,
-            user.RoleId,
             user.Role.Name,
-            user.Role.RoleType,
             user.IsActive,
             user.CreatedAt,
             user.UpdatedAt

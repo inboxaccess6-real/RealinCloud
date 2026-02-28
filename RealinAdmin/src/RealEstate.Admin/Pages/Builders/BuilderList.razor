@@ -1,0 +1,140 @@
+@page "/builders"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using RealEstate.Application.DTOs.Builders
+@using RealEstate.Application.DTOs.Common
+
+@inject BuilderService BuilderService
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+
+<div class="page-header">
+    <h1 class="page-title">Builders</h1>
+    <PermissionGuard Module="PROPERTY_MGMT" Permission="create">
+        <button class="btn btn-primary btn-sm" @onclick="@(() => NavigationManager.NavigateTo("/builders/create"))">
+            + Create Builder
+        </button>
+    </PermissionGuard>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="tabs">
+            @foreach (var tab in _statusTabs)
+            {
+                <button class="tab @(tab.Key == _selectedFilter ? "active" : "")"
+                        @onclick="@(() => OnFilterChanged(tab.Key))">
+                    @tab.Value
+                </button>
+            }
+        </div>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <DataTable TItem="BuilderResponse"
+                   Columns="_columns"
+                   LoadData="LoadBuildersAsync"
+                   Searchable="true"
+                   DefaultPageSize="20"
+                   @ref="_dataTable">
+            <ActionTemplate>
+                <button class="btn btn-ghost btn-sm" @onclick="@(() => ViewBuilder(context.Id))">
+                    View
+                </button>
+            </ActionTemplate>
+        </DataTable>
+    </div>
+</div>
+
+@code {
+    private DataTable<BuilderResponse>? _dataTable;
+    private string _selectedFilter = "";
+    private List<DataColumn<BuilderResponse>> _columns = new();
+
+    private readonly Dictionary<string, string> _statusTabs = new()
+    {
+        { "", "All" },
+        { "active", "Active" },
+        { "inactive", "Inactive" }
+    };
+
+    protected override void OnInitialized()
+    {
+        _columns = new List<DataColumn<BuilderResponse>>
+        {
+            new DataColumn<BuilderResponse>
+            {
+                Header = "Name",
+                ValueSelector = b => b.Name
+            },
+            new DataColumn<BuilderResponse>
+            {
+                Header = "Email",
+                ValueSelector = b => b.Email ?? "\u2014"
+            },
+            new DataColumn<BuilderResponse>
+            {
+                Header = "Phone",
+                ValueSelector = b => b.Phone ?? "\u2014"
+            },
+            new DataColumn<BuilderResponse>
+            {
+                Header = "Reg #",
+                ValueSelector = b => b.RegistrationNumber ?? "\u2014"
+            },
+            new DataColumn<BuilderResponse>
+            {
+                Header = "Est. Year",
+                ValueSelector = b => b.EstablishedYear?.ToString() ?? "\u2014"
+            },
+            new DataColumn<BuilderResponse>
+            {
+                Header = "Status",
+                Template = builder => @<StatusBadge Status="@(builder.Active ? "active" : "inactive")" />
+            },
+            new DataColumn<BuilderResponse>
+            {
+                Header = "Projects",
+                ValueSelector = b => b.ProjectCount
+            },
+            new DataColumn<BuilderResponse>
+            {
+                Header = "Created",
+                ValueSelector = b => b.CreatedAt.ToString("MMM dd, yyyy")
+            }
+        };
+    }
+
+    private async Task<(List<BuilderResponse> Items, int TotalCount)> LoadBuildersAsync(int page, int pageSize, string? search)
+    {
+        bool? activeFilter = _selectedFilter switch
+        {
+            "active" => true,
+            "inactive" => false,
+            _ => null
+        };
+
+        var result = await BuilderService.GetBuildersAsync(page, pageSize, activeFilter);
+
+        if (result.Success && result.Data is not null)
+        {
+            return (result.Data.Items, result.Data.TotalCount);
+        }
+
+        if (!string.IsNullOrEmpty(result.Error))
+        {
+            ToastService.ShowError(result.Error);
+        }
+
+        return (new List<BuilderResponse>(), 0);
+    }
+
+    private async Task OnFilterChanged(string filter)
+    {
+        _selectedFilter = filter;
+        if (_dataTable is not null) await _dataTable.RefreshAsync();
+    }
+
+    private void ViewBuilder(Guid builderId)
+    {
+        NavigationManager.NavigateTo($"/builders/{builderId}");
+    }
+}

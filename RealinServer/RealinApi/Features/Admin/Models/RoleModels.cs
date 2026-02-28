@@ -4,8 +4,6 @@ namespace RealinApi.Features.Admin.Models;
 
 public record RoleResponse(
     Guid Id,
-    RoleType RoleType,
-    int RoleValue,
     string Name,
     string? Description,
     bool IsActive,
@@ -15,7 +13,6 @@ public record RoleResponse(
 );
 
 public record CreateRoleRequest(
-    RoleType RoleType,
     string Name,
     string? Description = null,
     bool IsActive = true

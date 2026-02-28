@@ -1,0 +1,26 @@
+@if (!string.IsNullOrEmpty(Status))
+{
+    <span class="badge badge-@GetStatusClass()">@Status</span>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public string Status { get; set; } = string.Empty;
+
+    private string GetStatusClass()
+    {
+        return Status?.ToLower() switch
+        {
+            "active" => "active",
+            "blocked" => "blocked",
+            "pending" => "pending",
+            "approved" => "approved",
+            "rejected" => "rejected",
+            "draft" => "draft",
+            "submitted" => "submitted",
+            "inactive" => "inactive",
+            "suspended" => "suspended",
+            _ => Status?.ToLower() ?? "default"
+        };
+    }
+}

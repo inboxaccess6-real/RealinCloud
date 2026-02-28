@@ -1,0 +1,276 @@
+@page "/properties"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using RealEstate.Application.DTOs.Properties
+@using RealEstate.Application.DTOs.Common
+
+@inject PropertyService PropertyService
+@inject AgentService AgentService
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+@inject PermissionService PermissionService
+@inject AdminAuthStateProvider AuthStateProvider
+
+<div class="page-header">
+    <h1 class="page-title">Properties</h1>
+    <PermissionGuard Module="PROPERTY_MGMT" Permission="create">
+        <button class="btn btn-primary btn-sm" @onclick="@(() => NavigationManager.NavigateTo("/properties/create"))">
+            + Create Property
+        </button>
+    </PermissionGuard>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="filter-bar" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            <FilterDropdown Label="Approval"
+                            Options="_approvalOptions"
+                            SelectedValue="@_selectedApproval"
+                            OnChanged="OnApprovalFilterChanged" />
+            <FilterDropdown Label="Published"
+                            Options="_publishedOptions"
+                            SelectedValue="@_selectedPublished"
+                            OnChanged="OnPublishedFilterChanged" />
+        </div>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <DataTable TItem="PropertyResponse"
+                   Columns="_columns"
+                   LoadData="LoadPropertiesAsync"
+                   Searchable="true"
+                   DefaultPageSize="20"
+                   @ref="_dataTable">
+            <ActionTemplate>
+                <div style="position: relative;">
+                    <button class="btn btn-ghost btn-sm"
+                            @onclick="@(() => ToggleActionMenu(context.Id))"
+                            @onclick:stopPropagation="true">
+                        ...
+                    </button>
+                    @if (_openMenuId == context.Id)
+                    {
+                        <div style="position: absolute; right: 0; top: 100%; z-index: 10; background: var(--color-surface); border: 1px solid var(--color-border, #e2e8f0); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-width: 160px; padding: 4px 0;">
+                            <button class="btn btn-ghost btn-sm" style="width: 100%; text-align: left; border-radius: 0; padding: 8px 16px;"
+                                    @onclick="@(() => ViewProperty(context.Id))">
+                                View
+                            </button>
+                            <PermissionGuard Module="PROPERTY_MGMT" Permission="delete">
+                                <button class="btn btn-ghost btn-sm" style="width: 100%; text-align: left; border-radius: 0; padding: 8px 16px; color: var(--color-danger, #ef4444);"
+                                        @onclick="@(() => ConfirmDelete(context))">
+                                    Delete
+                                </button>
+                            </PermissionGuard>
+                        </div>
+                    }
+                </div>
+            </ActionTemplate>
+        </DataTable>
+    </div>
+</div>
+
+<ConfirmDialog @ref="_confirmDialog"
+               Title="@_confirmTitle"
+               Message="@_confirmMessage"
+               OnConfirm="OnConfirmDelete" />
+
+@code {
+    private DataTable<PropertyResponse>? _dataTable;
+    private ConfirmDialog? _confirmDialog;
+
+    private string? _selectedApproval;
+    private string? _selectedPublished;
+    private Guid? _openMenuId;
+    private Guid? _currentAgentId;
+    private PropertyResponse? _pendingDeleteProperty;
+    private string _confirmTitle = "";
+    private string _confirmMessage = "";
+
+    private readonly Dictionary<string, string> _approvalOptions = new()
+    {
+        { "draft", "Draft" },
+        { "submitted", "Submitted" },
+        { "under_review", "Under Review" },
+        { "approved", "Approved" },
+        { "rejected", "Rejected" }
+    };
+
+    private readonly Dictionary<string, string> _publishedOptions = new()
+    {
+        { "true", "Published" },
+        { "false", "Unpublished" }
+    };
+
+    private List<DataColumn<PropertyResponse>> _columns = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // If current user is an agent, resolve their agent ID for filtering
+        var currentUser = AuthStateProvider.CurrentUser;
+        if (currentUser is not null && string.Equals(currentUser.Role, "Agent", StringComparison.OrdinalIgnoreCase))
+        {
+            var agentResult = await AgentService.GetAgentByUserIdAsync(currentUser.Id);
+            if (agentResult.Success && agentResult.Data is not null)
+            {
+                _currentAgentId = agentResult.Data.Id;
+            }
+        }
+
+        _columns = new List<DataColumn<PropertyResponse>>
+        {
+            new DataColumn<PropertyResponse>
+            {
+                Header = "Title",
+                ValueSelector = p => TruncateTitle(p.Title, 40)
+            },
+            new DataColumn<PropertyResponse>
+            {
+                Header = "Type",
+                ValueSelector = p => p.ListingType
+            },
+            new DataColumn<PropertyResponse>
+            {
+                Header = "City",
+                ValueSelector = p => p.City ?? "\u2014"
+            },
+            new DataColumn<PropertyResponse>
+            {
+                Header = "Price",
+                ValueSelector = p => FormatPrice(p.Price, p.Currency)
+            },
+            new DataColumn<PropertyResponse>
+            {
+                Header = "Agent",
+                Template = property => @<div>
+                    <a href="/agents/@property.AgentId" style="color: var(--color-primary); text-decoration: none; font-size: 0.9em;">
+                        @(property.Agent?.AgencyName ?? "View")
+                    </a>
+                </div>
+            },
+            new DataColumn<PropertyResponse>
+            {
+                Header = "Approval",
+                Template = property => @<StatusBadge Status="@property.ApprovalStatus" />
+            },
+            new DataColumn<PropertyResponse>
+            {
+                Header = "Status",
+                Template = property => @<div>
+                    <span class="badge @(property.IsPublished ? "badge-active" : "badge-inactive")">
+                        @(property.IsPublished ? "Published" : "Unpublished")
+                    </span>
+                    @if (property.IsFlagged)
+                    {
+                        <span class="badge badge-blocked" style="margin-left: 0.25rem;">Flagged</span>
+                    }
+                </div>
+            },
+            new DataColumn<PropertyResponse>
+            {
+                Header = "Created",
+                ValueSelector = p => p.CreatedAt.ToString("MMM dd, yyyy")
+            }
+        };
+    }
+
+    private async Task<(List<PropertyResponse> Items, int TotalCount)> LoadPropertiesAsync(int page, int pageSize, string? search)
+    {
+        bool? publishedFilter = _selectedPublished switch
+        {
+            "true" => true,
+            "false" => false,
+            _ => null
+        };
+
+        var approvalFilter = string.IsNullOrEmpty(_selectedApproval) ? null : _selectedApproval;
+
+        var result = await PropertyService.GetPropertiesAsync(page, pageSize, null, publishedFilter, approvalFilter, _currentAgentId);
+
+        if (result.Success && result.Data is not null)
+        {
+            return (result.Data.Items, result.Data.TotalCount);
+        }
+
+        if (!string.IsNullOrEmpty(result.Error))
+        {
+            ToastService.ShowError(result.Error);
+        }
+
+        return (new List<PropertyResponse>(), 0);
+    }
+
+    private static string TruncateTitle(string title, int maxLength)
+    {
+        if (string.IsNullOrEmpty(title)) return "\u2014";
+        return title.Length <= maxLength ? title : title[..maxLength] + "\u2026";
+    }
+
+    private static string FormatPrice(decimal price, string currency)
+    {
+        if (string.Equals(currency, "INR", StringComparison.OrdinalIgnoreCase))
+        {
+            if (price >= 10_000_000m)
+            {
+                var crores = price / 10_000_000m;
+                return $"\u20B9{crores:F1}Cr";
+            }
+            if (price >= 100_000m)
+            {
+                var lakhs = price / 100_000m;
+                return $"\u20B9{lakhs:F1}L";
+            }
+            return $"\u20B9{price:N0}";
+        }
+        return $"{currency} {price:N0}";
+    }
+
+    private async Task OnApprovalFilterChanged(string? value)
+    {
+        _selectedApproval = value;
+        _openMenuId = null;
+        if (_dataTable is not null) await _dataTable.RefreshAsync();
+    }
+
+    private async Task OnPublishedFilterChanged(string? value)
+    {
+        _selectedPublished = value;
+        _openMenuId = null;
+        if (_dataTable is not null) await _dataTable.RefreshAsync();
+    }
+
+    private void ToggleActionMenu(Guid propertyId)
+    {
+        _openMenuId = _openMenuId == propertyId ? null : propertyId;
+    }
+
+    private void ViewProperty(Guid propertyId)
+    {
+        _openMenuId = null;
+        NavigationManager.NavigateTo($"/properties/{propertyId}");
+    }
+
+    private void ConfirmDelete(PropertyResponse property)
+    {
+        _openMenuId = null;
+        _pendingDeleteProperty = property;
+        _confirmTitle = "Delete Property";
+        _confirmMessage = $"Are you sure you want to delete \"{TruncateTitle(property.Title, 50)}\"? This action cannot be undone.";
+        _confirmDialog?.Show();
+    }
+
+    private async Task OnConfirmDelete()
+    {
+        if (_pendingDeleteProperty is null) return;
+
+        var result = await PropertyService.DeletePropertyAsync(_pendingDeleteProperty.Id);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess($"Property \"{TruncateTitle(_pendingDeleteProperty.Title, 30)}\" has been deleted.");
+            _pendingDeleteProperty = null;
+            if (_dataTable is not null) await _dataTable.RefreshAsync();
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to delete property.");
+            _pendingDeleteProperty = null;
+        }
+    }
+}

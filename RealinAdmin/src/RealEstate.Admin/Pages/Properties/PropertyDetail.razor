@@ -1,0 +1,742 @@
+@page "/properties/{Id:guid}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using Microsoft.AspNetCore.Components.Forms
+@using RealEstate.Application.DTOs.Media
+@using RealEstate.Application.DTOs.Properties
+@using RealEstate.Application.DTOs.Common
+
+@inject PropertyService PropertyService
+@inject ApiClient ApiClient
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+
+@if (_isLoading)
+{
+    <div style="display: flex; justify-content: center; padding: 4rem;">
+        <div class="spinner"></div>
+    </div>
+}
+else if (_error is not null)
+{
+    <div class="page-header">
+        <h1 class="page-title">Property Details</h1>
+    </div>
+    <div class="card">
+        <div class="card-body" style="text-align: center; padding: 3rem;">
+            <p style="color: var(--color-danger, #ef4444);">@_error</p>
+            <button class="btn btn-primary" style="margin-top: 1rem;" @onclick="GoBack">Back to Properties</button>
+        </div>
+    </div>
+}
+else if (_property is not null)
+{
+    <div class="page-header">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <button class="btn btn-ghost btn-sm" @onclick="GoBack">&larr; Back</button>
+            <h1 class="page-title">@_property.Title</h1>
+            <StatusBadge Status="@_property.ApprovalStatus" />
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs" style="margin-bottom: 1.5rem;">
+        <button class="tab @(_activeTab == "overview" ? "active" : "")" @onclick="@(() => SwitchTab("overview"))">Overview</button>
+        <button class="tab @(_activeTab == "media" ? "active" : "")" @onclick="@(() => SwitchTab("media"))">Media</button>
+        <button class="tab @(_activeTab == "location" ? "active" : "")" @onclick="@(() => SwitchTab("location"))">Location</button>
+        <button class="tab @(_activeTab == "activity" ? "active" : "")" @onclick="@(() => SwitchTab("activity"))">Activity</button>
+    </div>
+
+    @if (_activeTab == "overview")
+    {
+        <!-- Basic Info -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Basic Information</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem;">
+                    @InfoField("Title", _property.Title)
+                    @InfoField("Listing Type", _property.ListingType)
+                    @InfoField("Listing Category", _property.ListingCategory)
+                    @InfoField("Property Type", _property.PropertyType)
+                    @InfoField("Construction Status", _property.ConstructionStatus)
+                    @InfoField("Facing", _property.Facing)
+                    @InfoField("Status", _property.Status)
+                    @InfoField("RERA ID", _property.ReraId)
+                    @InfoField("Available From", _property.AvailableFrom?.ToString("MMM dd, yyyy"))
+                </div>
+            </div>
+        </div>
+
+        <!-- Pricing -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Pricing</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem;">
+                    @InfoField("Price", FormatPrice(_property.Price, _property.Currency))
+                    @InfoField("Currency", _property.Currency)
+                    @InfoField("Monthly Rent", _property.MonthlyRent.HasValue ? FormatPrice(_property.MonthlyRent.Value, _property.Currency) : null)
+                    @InfoField("Security Deposit", _property.SecurityDeposit.HasValue ? FormatPrice(_property.SecurityDeposit.Value, _property.Currency) : null)
+                    @InfoField("Maintenance Charges", _property.MaintenanceCharges.HasValue ? FormatPrice(_property.MaintenanceCharges.Value, _property.Currency) : null)
+                    @InfoField("Price Negotiable", _property.PriceNegotiable.HasValue ? (_property.PriceNegotiable.Value ? "Yes" : "No") : null)
+                </div>
+            </div>
+        </div>
+
+        <!-- Dimensions -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Dimensions</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem;">
+                    @InfoField("Carpet Area", _property.CarpetArea.HasValue ? $"{_property.CarpetArea.Value:N0} sq.ft" : null)
+                    @InfoField("Built-up Area", _property.BuiltupArea.HasValue ? $"{_property.BuiltupArea.Value:N0} sq.ft" : null)
+                    @InfoField("Super Built-up Area", _property.SuperBuiltupArea.HasValue ? $"{_property.SuperBuiltupArea.Value:N0} sq.ft" : null)
+                    @InfoField("Floor Number", _property.FloorNumber?.ToString())
+                    @InfoField("Total Floors", _property.TotalFloors?.ToString())
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Configuration</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem;">
+                    @InfoField("Bedrooms", _property.Bedrooms?.ToString())
+                    @InfoField("Bathrooms", _property.Bathrooms?.ToString())
+                    @InfoField("Balconies", _property.Balconies?.ToString())
+                    @InfoField("Furnishing Status", _property.FurnishingStatus)
+                    @InfoField("Property Age", _property.PropertyAge.HasValue ? $"{_property.PropertyAge.Value} years" : null)
+                    @InfoField("Ownership Type", _property.OwnershipType)
+                    @InfoField("Loan Available", _property.LoanAvailable.HasValue ? (_property.LoanAvailable.Value ? "Yes" : "No") : null)
+                </div>
+            </div>
+        </div>
+
+        <!-- Features -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Features</h3>
+            </div>
+            <div class="card-body">
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.5rem;">Amenities</div>
+                    @if (!string.IsNullOrEmpty(_property.Amenities))
+                    {
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            @foreach (var amenity in _property.Amenities.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                            {
+                                <span class="badge badge-default">@amenity</span>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div style="color: var(--color-text-muted, #64748b);">&mdash;</div>
+                    }
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.5rem;">Interior Features</div>
+                    @if (!string.IsNullOrEmpty(_property.InteriorFeatures))
+                    {
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            @foreach (var feature in _property.InteriorFeatures.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                            {
+                                <span class="badge badge-default">@feature</span>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div style="color: var(--color-text-muted, #64748b);">&mdash;</div>
+                    }
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.5rem;">Utilities</div>
+                    @if (!string.IsNullOrEmpty(_property.Utilities))
+                    {
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            @foreach (var utility in _property.Utilities.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                            {
+                                <span class="badge badge-default">@utility</span>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div style="color: var(--color-text-muted, #64748b);">&mdash;</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Agent Info -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Agent</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem;">
+                    <div>
+                        <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Agent</div>
+                        <div>
+                            <a href="/agents/@_property.AgentId" style="color: var(--color-primary); text-decoration: none;">
+                                @(_property.Agent?.AgencyName ?? "View Agent")
+                            </a>
+                        </div>
+                    </div>
+                    @if (_property.Agent?.Rating.HasValue == true)
+                    {
+                        <div>
+                            <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Agent Rating</div>
+                            <div>@($"{_property.Agent.Rating.Value:F1} \u2605")</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Project Info -->
+        @if (_property.ProjectId.HasValue)
+        {
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Project</h3>
+                </div>
+                <div class="card-body">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem;">
+                        <div>
+                            <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Project Name</div>
+                            <div>
+                                <a href="/projects/@_property.ProjectId" style="color: var(--color-primary); text-decoration: none;">
+                                    @(_property.Project?.Name ?? "View Project")
+                                </a>
+                            </div>
+                        </div>
+                        @if (_property.Project?.City is not null)
+                        {
+                            <div>
+                                <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Project City</div>
+                                <div>@_property.Project.City</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else if (_activeTab == "media")
+    {
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Images & Videos</h3>
+                <PermissionGuard Module="PROPERTY_MGMT" Permission="update">
+                    <label class="btn btn-primary btn-sm" style="cursor: pointer; margin: 0;">
+                        Upload Media
+                        <InputFile OnChange="OnFilesSelected" multiple accept="image/*,video/*" style="display: none;" />
+                    </label>
+                </PermissionGuard>
+            </div>
+            <div class="card-body">
+                @if (_isUploadingMedia)
+                {
+                    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 1rem 0;">
+                        <div class="spinner" style="width: 20px; height: 20px;"></div>
+                        <span style="color: var(--color-text-muted, #64748b);">Uploading...</span>
+                    </div>
+                }
+
+                @if (_isLoadingMedia)
+                {
+                    <div style="display: flex; justify-content: center; padding: 2rem;">
+                        <div class="spinner"></div>
+                    </div>
+                }
+                else if (_mediaFiles.Count > 0)
+                {
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">
+                        @foreach (var media in _mediaFiles)
+                        {
+                            <div style="position: relative; border-radius: 8px; overflow: hidden; aspect-ratio: 4/3; background: var(--color-bg-secondary, #f1f5f9);">
+                                @if (IsVideo(media.ContentType))
+                                {
+                                    <video src="@ApiClient.ResolveMediaUrl(media.Url)" style="width: 100%; height: 100%; object-fit: cover;" controls preload="metadata"></video>
+                                }
+                                else
+                                {
+                                    <img src="@ApiClient.ResolveMediaUrl(media.Url)" alt="Property image" style="width: 100%; height: 100%; object-fit: cover;" />
+                                }
+                                <PermissionGuard Module="PROPERTY_MGMT" Permission="update">
+                                    <button class="btn btn-danger btn-sm"
+                                            style="position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.15rem 0.5rem; font-size: 0.8rem; min-width: auto; line-height: 1.2;"
+                                            @onclick="@(() => ConfirmDeleteMedia(media))">
+                                        &times;
+                                    </button>
+                                </PermissionGuard>
+                                <div style="position: absolute; bottom: 0; left: 0; right: 0; padding: 0.35rem 0.5rem; background: rgba(0,0,0,0.5); color: white; font-size: 0.75em;">
+                                    @media.UploadedAt.ToString("MMM dd, yyyy")
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p style="color: var(--color-text-muted, #64748b);">No media uploaded.</p>
+                }
+            </div>
+        </div>
+    }
+    else if (_activeTab == "location")
+    {
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Location Details</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem;">
+                    @InfoField("Address", _property.Address)
+                    @InfoField("Locality", _property.Locality)
+                    @InfoField("City", _property.City)
+                    @InfoField("Pin Code", _property.PinCode)
+                    @InfoField("Landmark", _property.Landmark)
+                    @InfoField("Latitude", _property.Latitude?.ToString("F6"))
+                    @InfoField("Longitude", _property.Longitude?.ToString("F6"))
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Map</h3>
+            </div>
+            <div class="card-body" style="text-align: center; padding: 3rem;">
+                <p style="color: var(--color-text-muted, #64748b);">Map integration coming soon.</p>
+            </div>
+        </div>
+    }
+    else if (_activeTab == "activity")
+    {
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Activity</h3>
+            </div>
+            <div class="card-body" style="text-align: center; padding: 3rem;">
+                <p style="color: var(--color-text-muted, #64748b);">Property activity history will appear here.</p>
+            </div>
+        </div>
+    }
+
+    <!-- Action Panel -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+            <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Actions & Status</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Approval Status</div>
+                    <div><StatusBadge Status="@_property.ApprovalStatus" /></div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Published</div>
+                    <div>
+                        <span class="badge @(_property.IsPublished ? "badge-active" : "badge-inactive")">
+                            @(_property.IsPublished ? "Published" : "Unpublished")
+                        </span>
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Featured</div>
+                    <div>@(_property.IsFeatured ? "Yes" : "No")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Created</div>
+                    <div>@_property.CreatedAt.ToString("MMM dd, yyyy")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Updated</div>
+                    <div>@_property.UpdatedAt.ToString("MMM dd, yyyy")</div>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(_property.RejectionReason))
+            {
+                <div style="margin-bottom: 1rem; padding: 1rem; background: var(--color-danger-bg, #fef2f2); border-radius: 6px;">
+                    <div style="font-size: 0.85em; color: var(--color-danger, #ef4444); font-weight: 600; margin-bottom: 0.25rem;">Rejection Reason</div>
+                    <div>@_property.RejectionReason</div>
+                </div>
+            }
+
+            @if (_property.IsFlagged && !string.IsNullOrEmpty(_property.FlagReason))
+            {
+                <div style="margin-bottom: 1rem; padding: 1rem; background: var(--color-warning-bg, #fffbeb); border-radius: 6px;">
+                    <div style="font-size: 0.85em; color: var(--color-warning, #f59e0b); font-weight: 600; margin-bottom: 0.25rem;">Flag Reason</div>
+                    <div>@_property.FlagReason</div>
+                </div>
+            }
+
+            <div style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
+                @if (string.Equals(_property.ApprovalStatus, "draft", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(_property.ApprovalStatus, "rejected", StringComparison.OrdinalIgnoreCase))
+                {
+                    <PermissionGuard Module="PROPERTY_MGMT" Permission="update">
+                        <button class="btn btn-primary" @onclick="ConfirmSubmitForApproval">
+                            @(string.Equals(_property.ApprovalStatus, "rejected", StringComparison.OrdinalIgnoreCase) ? "Resubmit for Approval" : "Submit for Approval")
+                        </button>
+                    </PermissionGuard>
+                }
+                @if (string.Equals(_property.ApprovalStatus, "submitted", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(_property.ApprovalStatus, "under_review", StringComparison.OrdinalIgnoreCase))
+                {
+                    <PermissionGuard Module="APPROVALS" Permission="update">
+                        <button class="btn btn-primary" @onclick="ConfirmApprove">Approve</button>
+                        <button class="btn btn-danger" @onclick="ConfirmReject">Reject</button>
+                    </PermissionGuard>
+                }
+                <PermissionGuard Module="PROPERTY_MGMT" Permission="update">
+                    <button class="btn @(_property.IsPublished ? "btn-ghost" : "btn-primary")" @onclick="TogglePublished">
+                        @(_property.IsPublished ? "Unpublish" : "Publish")
+                    </button>
+                </PermissionGuard>
+                <PermissionGuard Module="PROPERTY_MGMT" Permission="update">
+                    <button class="btn btn-ghost" @onclick="@(() => NavigationManager.NavigateTo($"/properties/{_property.Id}/edit"))">
+                        Edit
+                    </button>
+                </PermissionGuard>
+                <PermissionGuard Module="PROPERTY_MGMT" Permission="delete">
+                    <button class="btn btn-danger" @onclick="ConfirmDelete">
+                        Delete Property
+                    </button>
+                </PermissionGuard>
+            </div>
+        </div>
+    </div>
+}
+
+<ConfirmDialog @ref="_confirmDialog"
+               Title="@_confirmTitle"
+               Message="@_confirmMessage"
+               ConfirmText="@_confirmButtonText"
+               ConfirmCssClass="@_confirmButtonClass"
+               OnConfirm="OnConfirmAction" />
+
+<ReasonDialog @ref="_reasonDialog"
+              Title="Reject Property"
+              Message="@_rejectMessage"
+              ReasonLabel="Rejection Reason"
+              ConfirmText="Reject"
+              OnConfirm="OnConfirmReject" />
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private PropertyResponse? _property;
+    private bool _isLoading = true;
+    private string? _error;
+    private string _activeTab = "overview";
+    private List<MediaResponse> _mediaFiles = new();
+    private bool _isLoadingMedia;
+    private bool _isUploadingMedia;
+    private bool _mediaLoaded;
+    private ConfirmDialog? _confirmDialog;
+    private ReasonDialog? _reasonDialog;
+    private string _confirmTitle = "";
+    private string _confirmMessage = "";
+    private string _confirmButtonText = "Confirm";
+    private string _confirmButtonClass = "btn btn-danger";
+    private string _rejectMessage = "";
+    private Func<Task>? _pendingConfirmAction;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPropertyAsync();
+    }
+
+    private async Task LoadPropertyAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            var result = await PropertyService.GetPropertyByIdAsync(Id);
+
+            if (result.Success && result.Data is not null)
+            {
+                _property = result.Data;
+            }
+            else
+            {
+                _error = result.Error ?? "Failed to load property details.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = "An unexpected error occurred while loading property details.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static bool IsVideo(string? contentType)
+        => contentType?.StartsWith("video/", StringComparison.OrdinalIgnoreCase) == true;
+
+    private static string FormatPrice(decimal price, string currency)
+    {
+        if (string.Equals(currency, "INR", StringComparison.OrdinalIgnoreCase))
+        {
+            if (price >= 10_000_000m)
+            {
+                var crores = price / 10_000_000m;
+                return $"\u20B9{crores:F1}Cr";
+            }
+            if (price >= 100_000m)
+            {
+                var lakhs = price / 100_000m;
+                return $"\u20B9{lakhs:F1}L";
+            }
+            return $"\u20B9{price:N0}";
+        }
+        return $"{currency} {price:N0}";
+    }
+
+    private static RenderFragment InfoField(string label, string? value) => __builder =>
+    {
+        <div>
+            <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">@label</div>
+            <div>@(value ?? "\u2014")</div>
+        </div>
+    };
+
+    private async Task TogglePublished()
+    {
+        if (_property is null) return;
+
+        var newPublished = !_property.IsPublished;
+        var request = new UpdatePropertyRequest(IsPublished: newPublished);
+        var result = await PropertyService.UpdatePropertyAsync(_property.Id, request);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess(newPublished ? "Property has been published." : "Property has been unpublished.");
+            await LoadPropertyAsync();
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to update property.");
+        }
+    }
+
+    private void ConfirmDelete()
+    {
+        if (_property is null) return;
+        _confirmTitle = "Delete Property";
+        _confirmMessage = $"Are you sure you want to delete \"{_property.Title}\"? This action cannot be undone.";
+        _confirmButtonText = "Delete";
+        _confirmButtonClass = "btn btn-danger";
+        _pendingConfirmAction = OnDeleteProperty;
+        _confirmDialog?.Show();
+    }
+
+    private void ConfirmSubmitForApproval()
+    {
+        if (_property is null) return;
+        _confirmTitle = "Submit for Approval";
+        _confirmMessage = $"Submit \"{_property.Title}\" for admin review and approval?";
+        _confirmButtonText = "Submit";
+        _confirmButtonClass = "btn btn-primary";
+        _pendingConfirmAction = OnSubmitForApproval;
+        _confirmDialog?.Show();
+    }
+
+    private async Task OnSubmitForApproval()
+    {
+        if (_property is null) return;
+
+        var result = await PropertyService.SubmitForApprovalAsync(_property.Id);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess("Property submitted for approval.");
+            await LoadPropertyAsync();
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to submit property for approval.");
+        }
+    }
+
+    private void ConfirmApprove()
+    {
+        if (_property is null) return;
+        _confirmTitle = "Approve Property";
+        _confirmMessage = $"Are you sure you want to approve property \"{_property.Title}\"?";
+        _confirmButtonText = "Approve";
+        _confirmButtonClass = "btn btn-primary";
+        _pendingConfirmAction = OnApproveProperty;
+        _confirmDialog?.Show();
+    }
+
+    private void ConfirmReject()
+    {
+        if (_property is null) return;
+        _rejectMessage = $"Please provide a reason for rejecting property \"{_property.Title}\".";
+        _reasonDialog?.Show();
+    }
+
+    private async Task OnConfirmAction()
+    {
+        if (_pendingConfirmAction is not null)
+        {
+            await _pendingConfirmAction();
+            _pendingConfirmAction = null;
+        }
+    }
+
+    private async Task OnDeleteProperty()
+    {
+        if (_property is null) return;
+
+        var result = await PropertyService.DeletePropertyAsync(_property.Id);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess("Property has been deleted.");
+            NavigationManager.NavigateTo("/properties");
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to delete property.");
+        }
+    }
+
+    private async Task OnApproveProperty()
+    {
+        if (_property is null) return;
+
+        var result = await PropertyService.ApprovePropertyAsync(_property.Id);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess("Property has been approved.");
+            await LoadPropertyAsync();
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to approve property.");
+        }
+    }
+
+    private async Task OnConfirmReject(string reason)
+    {
+        if (_property is null) return;
+
+        var result = await PropertyService.RejectPropertyAsync(_property.Id, reason);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess("Property has been rejected.");
+            await LoadPropertyAsync();
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to reject property.");
+        }
+    }
+
+    private async Task SwitchTab(string tab)
+    {
+        _activeTab = tab;
+        if (tab == "media" && !_mediaLoaded)
+        {
+            await LoadMediaAsync();
+        }
+    }
+
+    private async Task LoadMediaAsync()
+    {
+        _isLoadingMedia = true;
+        try
+        {
+            var result = await PropertyService.GetMediaAsync(Id);
+            if (result.Success && result.Data is not null)
+            {
+                _mediaFiles = result.Data;
+            }
+        }
+        catch { }
+        finally
+        {
+            _isLoadingMedia = false;
+            _mediaLoaded = true;
+        }
+    }
+
+    private async Task OnFilesSelected(InputFileChangeEventArgs e)
+    {
+        _isUploadingMedia = true;
+        StateHasChanged();
+
+        var maxFileSize = 100 * 1024 * 1024; // 100 MB (images + videos)
+        foreach (var file in e.GetMultipleFiles(10))
+        {
+            try
+            {
+                await using var stream = file.OpenReadStream(maxFileSize);
+                var result = await PropertyService.UploadMediaAsync(
+                    Id, stream, file.Name, file.ContentType);
+
+                if (result.Success && result.Data is not null)
+                {
+                    _mediaFiles.Insert(0, result.Data);
+                }
+                else
+                {
+                    ToastService.ShowError(result.Error ?? $"Failed to upload {file.Name}.");
+                }
+            }
+            catch (Exception)
+            {
+                ToastService.ShowError($"Failed to upload {file.Name}. File may be too large (max 100 MB).");
+            }
+        }
+
+        _isUploadingMedia = false;
+        StateHasChanged();
+    }
+
+    private void ConfirmDeleteMedia(MediaResponse media)
+    {
+        _confirmTitle = "Delete Image";
+        _confirmMessage = "Are you sure you want to delete this image? This action cannot be undone.";
+        _confirmButtonText = "Delete";
+        _confirmButtonClass = "btn btn-danger";
+        _pendingConfirmAction = async () => await OnDeleteMedia(media.Id);
+        _confirmDialog?.Show();
+    }
+
+    private async Task OnDeleteMedia(Guid mediaId)
+    {
+        var result = await PropertyService.DeleteMediaAsync(mediaId);
+        if (result.Success)
+        {
+            _mediaFiles.RemoveAll(m => m.Id == mediaId);
+            ToastService.ShowSuccess("Image deleted.");
+            StateHasChanged();
+        }
+        else
+        {
+            ToastService.ShowError(result.Error ?? "Failed to delete image.");
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/properties");
+    }
+}

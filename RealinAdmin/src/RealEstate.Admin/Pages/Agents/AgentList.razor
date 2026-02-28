@@ -1,0 +1,166 @@
+@page "/agents"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using RealEstate.Application.DTOs.Agents
+@using RealEstate.Application.DTOs.Common
+
+@inject AgentService AgentService
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+
+<div class="page-header">
+    <h1 class="page-title">Agents</h1>
+    <PermissionGuard Module="AGENT_MGMT" Permission="create">
+        <a href="/agents/create" class="btn btn-primary">+ Add Agent</a>
+    </PermissionGuard>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="tabs">
+            @foreach (var tab in _statusTabs)
+            {
+                <button class="tab @(tab.Key == _selectedStatus ? "active" : "")"
+                        @onclick="@(() => OnStatusTabChanged(tab.Key))">
+                    @tab.Value
+                </button>
+            }
+        </div>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <DataTable TItem="AgentResponse"
+                   Columns="_columns"
+                   LoadData="LoadAgentsAsync"
+                   Searchable="true"
+                   DefaultPageSize="20"
+                   @ref="_dataTable">
+            <ActionTemplate>
+                <div style="position: relative;">
+                    <button class="btn btn-ghost btn-sm"
+                            @onclick="@(() => ToggleActionMenu(context.Id))"
+                            @onclick:stopPropagation="true">
+                        ...
+                    </button>
+                    @if (_openMenuId == context.Id)
+                    {
+                        <div style="position: absolute; right: 0; top: 100%; z-index: 10; background: var(--color-surface); border: 1px solid var(--color-border, #e2e8f0); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-width: 160px; padding: 4px 0;">
+                            <button class="btn btn-ghost btn-sm" style="width: 100%; text-align: left; border-radius: 0; padding: 8px 16px;"
+                                    @onclick="@(() => ViewAgent(context.Id))">
+                                View
+                            </button>
+                            @if (context.User is not null)
+                            {
+                                <button class="btn btn-ghost btn-sm" style="width: 100%; text-align: left; border-radius: 0; padding: 8px 16px;"
+                                        @onclick="@(() => ViewUser(context.UserId))">
+                                    View User
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            </ActionTemplate>
+        </DataTable>
+    </div>
+</div>
+
+@code {
+    private DataTable<AgentResponse>? _dataTable;
+    private string? _selectedStatus;
+    private Guid? _openMenuId;
+
+    private readonly Dictionary<string, string> _statusTabs = new()
+    {
+        { "", "All" },
+        { "pending", "Pending" },
+        { "approved", "Approved" },
+        { "rejected", "Rejected" },
+        { "suspended", "Suspended" },
+        { "blacklisted", "Blacklisted" }
+    };
+
+    private List<DataColumn<AgentResponse>> _columns = new();
+
+    protected override void OnInitialized()
+    {
+        _columns = new List<DataColumn<AgentResponse>>
+        {
+            new DataColumn<AgentResponse>
+            {
+                Header = "Agent",
+                Template = agent => @<div>
+                    <div>@(agent.User?.Name ?? "\u2014")</div>
+                    @if (!string.IsNullOrEmpty(agent.AgencyName))
+                    {
+                        <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b);">@agent.AgencyName</div>
+                    }
+                </div>
+            },
+            new DataColumn<AgentResponse>
+            {
+                Header = "License",
+                ValueSelector = a => a.LicenseNumber ?? "\u2014"
+            },
+            new DataColumn<AgentResponse>
+            {
+                Header = "Rating",
+                ValueSelector = a => a.Rating.HasValue ? $"{a.Rating.Value:F1} \u2605" : "\u2014"
+            },
+            new DataColumn<AgentResponse>
+            {
+                Header = "Status",
+                Template = agent => @<StatusBadge Status="@agent.Status" />
+            },
+            new DataColumn<AgentResponse>
+            {
+                Header = "Properties",
+                ValueSelector = a => a.PropertyCount
+            },
+            new DataColumn<AgentResponse>
+            {
+                Header = "Created",
+                ValueSelector = a => a.CreatedAt.ToString("MMM dd, yyyy")
+            }
+        };
+    }
+
+    private async Task<(List<AgentResponse> Items, int TotalCount)> LoadAgentsAsync(int page, int pageSize, string? search)
+    {
+        var statusFilter = string.IsNullOrEmpty(_selectedStatus) ? null : _selectedStatus;
+        var result = await AgentService.GetAgentsAsync(page, pageSize, statusFilter);
+
+        if (result.Success && result.Data is not null)
+        {
+            return (result.Data.Items, result.Data.TotalCount);
+        }
+
+        if (!string.IsNullOrEmpty(result.Error))
+        {
+            ToastService.ShowError(result.Error);
+        }
+
+        return (new List<AgentResponse>(), 0);
+    }
+
+    private async Task OnStatusTabChanged(string status)
+    {
+        _selectedStatus = status;
+        _openMenuId = null;
+        if (_dataTable is not null) await _dataTable.RefreshAsync();
+    }
+
+    private void ToggleActionMenu(Guid agentId)
+    {
+        _openMenuId = _openMenuId == agentId ? null : agentId;
+    }
+
+    private void ViewAgent(Guid agentId)
+    {
+        _openMenuId = null;
+        NavigationManager.NavigateTo($"/agents/{agentId}");
+    }
+
+    private void ViewUser(Guid userId)
+    {
+        _openMenuId = null;
+        NavigationManager.NavigateTo($"/users/{userId}");
+    }
+}

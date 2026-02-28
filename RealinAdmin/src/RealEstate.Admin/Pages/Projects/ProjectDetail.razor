@@ -1,0 +1,242 @@
+@page "/projects/{Id:guid}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using RealEstate.Application.DTOs.Projects
+@using RealEstate.Application.DTOs.Common
+
+@inject ProjectService ProjectService
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+
+@if (_isLoading)
+{
+    <div style="display: flex; justify-content: center; padding: 4rem;">
+        <div class="spinner"></div>
+    </div>
+}
+else if (_error is not null)
+{
+    <div class="page-header">
+        <h1 class="page-title">Project Details</h1>
+    </div>
+    <div class="card">
+        <div class="card-body" style="text-align: center; padding: 3rem;">
+            <p style="color: var(--color-danger, #ef4444);">@_error</p>
+            <button class="btn btn-primary" style="margin-top: 1rem;" @onclick="GoBack">Back to Projects</button>
+        </div>
+    </div>
+}
+else if (_project is not null)
+{
+    <div class="page-header">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <button class="btn btn-ghost btn-sm" @onclick="GoBack">&larr; Back</button>
+            <h1 class="page-title">@_project.Name</h1>
+            @if (_project.Status is not null)
+            {
+                <StatusBadge Status="@_project.Status" />
+            }
+        </div>
+        <PermissionGuard Module="PROPERTY_MGMT" Permission="update">
+            <button class="btn btn-ghost btn-sm" @onclick="@(() => NavigationManager.NavigateTo($"/projects/{Id}/edit"))">Edit</button>
+        </PermissionGuard>
+    </div>
+
+    <!-- Project Info Card -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+            <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Project Information</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Name</div>
+                    <div>@_project.Name</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">RERA ID</div>
+                    <div>@(_project.ReraId ?? "\u2014")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Status</div>
+                    <div>@(_project.Status ?? "\u2014")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Location -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+            <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Location</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Address</div>
+                    <div>@(_project.Address ?? "\u2014")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Locality</div>
+                    <div>@(_project.Locality ?? "\u2014")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">City</div>
+                    <div>@(_project.City ?? "\u2014")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Pin Code</div>
+                    <div>@(_project.PinCode ?? "\u2014")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Landmark</div>
+                    <div>@(_project.Landmark ?? "\u2014")</div>
+                </div>
+                @if (_project.Latitude.HasValue && _project.Longitude.HasValue)
+                {
+                    <div>
+                        <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Coordinates</div>
+                        <div>@(_project.Latitude?.ToString("F6")), @(_project.Longitude?.ToString("F6"))</div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Construction Details -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+            <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Construction Details</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Construction Status</div>
+                    <div>@(_project.ConstructionStatus ?? "\u2014")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Launch Date</div>
+                    <div>@(_project.LaunchDate?.ToString("MMM dd, yyyy") ?? "\u2014")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Possession Date</div>
+                    <div>@(_project.PossessionDate?.ToString("MMM dd, yyyy") ?? "\u2014")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Total Towers</div>
+                    <div>@(_project.TotalTowers?.ToString() ?? "\u2014")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Total Units</div>
+                    <div>@(_project.TotalUnits?.ToString() ?? "\u2014")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="metrics-grid" style="margin-bottom: 1.5rem;">
+        <a href="/properties" style="text-decoration: none; color: inherit;">
+            <div class="metric-card" style="cursor: pointer;">
+                <div class="metric-card-label">Properties</div>
+                <div class="metric-card-value">@_project.PropertyCount</div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Builder -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+            <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Builder</h3>
+        </div>
+        <div class="card-body">
+            <div>
+                <a href="/builders/@_project.BuilderId" style="color: var(--color-primary); text-decoration: none;">
+                    @(_project.Builder?.Name ?? "View Builder")
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Created By Agent -->
+    @if (_project.CreatedByAgentId.HasValue)
+    {
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Created By Agent</h3>
+            </div>
+            <div class="card-body">
+                <div>
+                    <a href="/agents/@_project.CreatedByAgentId" style="color: var(--color-primary); text-decoration: none;">
+                        @(_project.CreatedByAgent?.AgencyName ?? "View Agent")
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Dates Card -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+            <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Dates</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Created</div>
+                    <div>@_project.CreatedAt.ToString("MMM dd, yyyy")</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem;">Updated</div>
+                    <div>@_project.UpdatedAt.ToString("MMM dd, yyyy")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private ProjectResponse? _project;
+    private bool _isLoading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProjectAsync();
+    }
+
+    private async Task LoadProjectAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            var result = await ProjectService.GetProjectByIdAsync(Id);
+
+            if (result.Success && result.Data is not null)
+            {
+                _project = result.Data;
+            }
+            else
+            {
+                _error = result.Error ?? "Failed to load project details.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = "An unexpected error occurred while loading project details.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/projects");
+    }
+}

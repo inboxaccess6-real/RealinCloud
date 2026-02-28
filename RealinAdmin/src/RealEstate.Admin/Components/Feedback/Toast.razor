@@ -1,0 +1,46 @@
+@inject ToastService ToastService
+@implements IDisposable
+
+<div class="toast-container">
+    @foreach (var toast in _toasts)
+    {
+        <div class="toast toast-@toast.Type.ToString().ToLower()">
+            @toast.Message
+        </div>
+    }
+</div>
+
+@code {
+    private readonly List<ToastMessage> _toasts = new();
+
+    protected override void OnInitialized()
+    {
+        ToastService.OnShow += HandleToast;
+    }
+
+    private async void HandleToast(ToastMessage toast)
+    {
+        await InvokeAsync(() =>
+        {
+            _toasts.Add(toast);
+            StateHasChanged();
+        });
+
+        _ = RemoveAfterDelay(toast);
+    }
+
+    private async Task RemoveAfterDelay(ToastMessage toast)
+    {
+        await Task.Delay(4000);
+        await InvokeAsync(() =>
+        {
+            _toasts.Remove(toast);
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ToastService.OnShow -= HandleToast;
+    }
+}

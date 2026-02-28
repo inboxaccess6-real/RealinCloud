@@ -1,0 +1,119 @@
+@page "/projects"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using RealEstate.Application.DTOs.Projects
+@using RealEstate.Application.DTOs.Common
+
+@inject ProjectService ProjectService
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+
+<div class="page-header">
+    <h1 class="page-title">Projects</h1>
+    <PermissionGuard Module="PROPERTY_MGMT" Permission="create">
+        <button class="btn btn-primary btn-sm" @onclick="@(() => NavigationManager.NavigateTo("/projects/create"))">
+            + Create Project
+        </button>
+    </PermissionGuard>
+</div>
+
+<div class="card">
+    <div class="card-body" style="padding: 0;">
+        <DataTable TItem="ProjectResponse"
+                   Columns="_columns"
+                   LoadData="LoadProjectsAsync"
+                   Searchable="true"
+                   DefaultPageSize="20"
+                   @ref="_dataTable">
+            <ActionTemplate>
+                <button class="btn btn-ghost btn-sm" @onclick="@(() => ViewProject(context.Id))">
+                    View
+                </button>
+            </ActionTemplate>
+        </DataTable>
+    </div>
+</div>
+
+@code {
+    private DataTable<ProjectResponse>? _dataTable;
+    private List<DataColumn<ProjectResponse>> _columns = new();
+
+    protected override void OnInitialized()
+    {
+        _columns = new List<DataColumn<ProjectResponse>>
+        {
+            new DataColumn<ProjectResponse>
+            {
+                Header = "Name",
+                ValueSelector = p => p.Name
+            },
+            new DataColumn<ProjectResponse>
+            {
+                Header = "Builder",
+                Template = project => @<div>
+                    @if (project.Builder is not null)
+                    {
+                        <a href="/builders/@project.BuilderId" style="color: var(--color-primary); text-decoration: none;">
+                            @project.Builder.Name
+                        </a>
+                    }
+                    else
+                    {
+                        <span>&mdash;</span>
+                    }
+                </div>
+            },
+            new DataColumn<ProjectResponse>
+            {
+                Header = "City",
+                ValueSelector = p => p.City ?? "\u2014"
+            },
+            new DataColumn<ProjectResponse>
+            {
+                Header = "RERA ID",
+                ValueSelector = p => p.ReraId ?? "\u2014"
+            },
+            new DataColumn<ProjectResponse>
+            {
+                Header = "Status",
+                Template = project => @<StatusBadge Status="@(project.Status ?? "unknown")" />
+            },
+            new DataColumn<ProjectResponse>
+            {
+                Header = "Units",
+                ValueSelector = p => p.TotalUnits?.ToString() ?? "\u2014"
+            },
+            new DataColumn<ProjectResponse>
+            {
+                Header = "Properties",
+                ValueSelector = p => p.PropertyCount
+            },
+            new DataColumn<ProjectResponse>
+            {
+                Header = "Created",
+                ValueSelector = p => p.CreatedAt.ToString("MMM dd, yyyy")
+            }
+        };
+    }
+
+    private async Task<(List<ProjectResponse> Items, int TotalCount)> LoadProjectsAsync(int page, int pageSize, string? search)
+    {
+        var result = await ProjectService.GetProjectsAsync(page, pageSize);
+
+        if (result.Success && result.Data is not null)
+        {
+            return (result.Data.Items, result.Data.TotalCount);
+        }
+
+        if (!string.IsNullOrEmpty(result.Error))
+        {
+            ToastService.ShowError(result.Error);
+        }
+
+        return (new List<ProjectResponse>(), 0);
+    }
+
+    private void ViewProject(Guid projectId)
+    {
+        NavigationManager.NavigateTo($"/projects/{projectId}");
+    }
+}

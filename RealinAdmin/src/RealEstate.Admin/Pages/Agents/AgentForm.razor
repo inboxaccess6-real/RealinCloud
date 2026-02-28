@@ -1,0 +1,220 @@
+@page "/agents/create"
+@page "/agents/{Id:guid}/edit"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using RealEstate.Application.DTOs.Agents
+@using RealEstate.Application.Features.Agents.Commands
+
+@inject AgentService AgentService
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+
+<div class="page-header">
+    <div style="display: flex; align-items: center; gap: 1rem;">
+        <button class="btn btn-ghost btn-sm" @onclick="GoBack">&larr; Back</button>
+        <h1 class="page-title">@(_isEditMode ? "Edit Agent" : "Add Agent")</h1>
+    </div>
+</div>
+
+@if (_isLoading)
+{
+    <div style="display: flex; justify-content: center; padding: 4rem;">
+        <div class="spinner"></div>
+    </div>
+}
+else
+{
+    <EditForm Model="_model" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+
+        @if (!_isEditMode)
+        {
+            <!-- User Details (only for create) -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">User Details</h3>
+                </div>
+                <div class="card-body">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                        @FormField("Full Name *", () =>
+                            @<input type="text" @bind="_model.Name" class="form-control" required placeholder="First and Last name" />
+                        )
+                        @FormField("Email", () =>
+                            @<input type="email" @bind="_model.Email" class="form-control" placeholder="agent@example.com" />
+                        )
+                        @FormField("Phone Number", () =>
+                            @<input type="tel" @bind="_model.PhoneNumber" class="form-control" placeholder="+91 98765 43210" />
+                        )
+                    </div>
+                    <div style="margin-top: 0.75rem; font-size: 0.85em; color: var(--color-text-muted, #64748b);">
+                        Either email or phone number is required. If a user with this email/phone already exists, they will be linked as an agent.
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Agent Details -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Agent Details</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                    @FormField("Agency Name", () =>
+                        @<input type="text" @bind="_model.AgencyName" class="form-control" />
+                    )
+                    @FormField("License Number", () =>
+                        @<input type="text" @bind="_model.LicenseNumber" class="form-control" />
+                    )
+                    @FormField("Experience (years)", () =>
+                        @<input type="number" @bind="_model.ExperienceYears" class="form-control" min="0" max="99" />
+                    )
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit -->
+        <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+            <button type="submit" class="btn btn-primary" disabled="@_isSaving">
+                @(_isSaving ? "Saving..." : "Save")
+            </button>
+            <button type="button" class="btn btn-ghost" @onclick="GoBack">Cancel</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public Guid? Id { get; set; }
+
+    private bool _isEditMode => Id.HasValue;
+    private bool _isLoading;
+    private bool _isSaving;
+    private AgentFormModel _model = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (_isEditMode)
+        {
+            _isLoading = true;
+            var result = await AgentService.GetAgentByIdAsync(Id!.Value);
+            if (result.Success && result.Data is not null)
+            {
+                var a = result.Data;
+                _model = new AgentFormModel
+                {
+                    AgencyName = a.AgencyName,
+                    LicenseNumber = a.LicenseNumber,
+                    ExperienceYears = a.ExperienceYears
+                };
+            }
+            else
+            {
+                ToastService.ShowError(result.Error ?? "Failed to load agent.");
+                NavigationManager.NavigateTo("/agents");
+                return;
+            }
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        _isSaving = true;
+
+        try
+        {
+            if (_isEditMode)
+            {
+                var request = new UpdateAgentRequest(
+                    LicenseNumber: _model.LicenseNumber,
+                    AgencyName: _model.AgencyName,
+                    ExperienceYears: _model.ExperienceYears
+                );
+
+                var result = await AgentService.UpdateAgentAsync(Id!.Value, request);
+                if (result.Success)
+                {
+                    ToastService.ShowSuccess("Agent updated successfully.");
+                    NavigationManager.NavigateTo($"/agents/{Id!.Value}");
+                }
+                else
+                {
+                    ToastService.ShowError(result.Error ?? "Failed to update agent.");
+                }
+            }
+            else
+            {
+                // Validate
+                if (string.IsNullOrWhiteSpace(_model.Name))
+                {
+                    ToastService.ShowError("Full name is required.");
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(_model.Email) && string.IsNullOrWhiteSpace(_model.PhoneNumber))
+                {
+                    ToastService.ShowError("Either email or phone number is required.");
+                    return;
+                }
+
+                var request = new AdminCreateAgentRequest(
+                    Name: _model.Name.Trim(),
+                    Email: NullIfEmpty(_model.Email),
+                    PhoneNumber: NullIfEmpty(_model.PhoneNumber),
+                    LicenseNumber: NullIfEmpty(_model.LicenseNumber),
+                    AgencyName: NullIfEmpty(_model.AgencyName),
+                    ExperienceYears: _model.ExperienceYears
+                );
+
+                var result = await AgentService.CreateAgentAsync(request);
+                if (result.Success && result.Data is not null)
+                {
+                    ToastService.ShowSuccess("Agent created successfully.");
+                    NavigationManager.NavigateTo($"/agents/{result.Data.Id}");
+                }
+                else
+                {
+                    ToastService.ShowError(result.Error ?? "Failed to create agent.");
+                }
+            }
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private static string? NullIfEmpty(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    private static RenderFragment FormField(string label, Func<RenderFragment> input) => __builder =>
+    {
+        <div>
+            <label style="display: block; font-size: 0.85em; color: var(--color-text-muted, #64748b); margin-bottom: 0.25rem; font-weight: 600;">
+                @label
+            </label>
+            @input()
+        </div>
+    };
+
+    private void GoBack()
+    {
+        if (_isEditMode)
+            NavigationManager.NavigateTo($"/agents/{Id}");
+        else
+            NavigationManager.NavigateTo("/agents");
+    }
+
+    private class AgentFormModel
+    {
+        // User fields (create only)
+        public string? Name { get; set; }
+        public string? Email { get; set; }
+        public string? PhoneNumber { get; set; }
+
+        // Agent fields
+        public string? AgencyName { get; set; }
+        public string? LicenseNumber { get; set; }
+        public int? ExperienceYears { get; set; }
+    }
+}

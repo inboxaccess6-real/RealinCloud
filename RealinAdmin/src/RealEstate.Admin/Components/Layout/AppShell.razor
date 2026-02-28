@@ -1,0 +1,94 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject NavigationManager Navigation
+@inject AuthService AuthService
+@inject AdminAuthStateProvider AuthStateProvider
+@inject PermissionService PermissionService
+
+<AuthorizeView>
+    <Authorized>
+        <div class="app-shell">
+            <Sidebar Collapsed="@sidebarCollapsed"
+                     MobileOpen="@sidebarMobileOpen"
+                     OnToggleMobile="ToggleMobileSidebar" />
+
+            @if (sidebarMobileOpen)
+            {
+                <div class="sidebar-overlay visible" @onclick="ToggleMobileSidebar"></div>
+            }
+
+            <div class="main-area">
+                <TopBar OnToggleSidebar="ToggleSidebar"
+                        OnToggleMobileSidebar="ToggleMobileSidebar" />
+
+                <div class="main-content">
+                    <Breadcrumb />
+                    @Body
+                </div>
+            </div>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        @Body
+    </NotAuthorized>
+</AuthorizeView>
+
+<Toast />
+
+@code {
+    private bool sidebarCollapsed = false;
+    private bool sidebarMobileOpen = false;
+
+    protected override void OnInitialized()
+    {
+        AuthStateProvider.AuthenticationStateChanged += OnAuthStateChanged;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPermissionsIfNeededAsync();
+    }
+
+    private async void OnAuthStateChanged(Task<AuthenticationState> task)
+    {
+        await LoadPermissionsIfNeededAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadPermissionsIfNeededAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            if (!PermissionService.IsLoaded)
+            {
+                var role = user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+                if (!string.IsNullOrEmpty(role))
+                {
+                    await PermissionService.LoadPermissionsByRoleNameAsync(role);
+                }
+            }
+        }
+        else
+        {
+            PermissionService.ClearPermissions();
+        }
+    }
+
+    private void ToggleSidebar()
+    {
+        sidebarCollapsed = !sidebarCollapsed;
+    }
+
+    private void ToggleMobileSidebar()
+    {
+        sidebarMobileOpen = !sidebarMobileOpen;
+    }
+
+    public void Dispose()
+    {
+        AuthStateProvider.AuthenticationStateChanged -= OnAuthStateChanged;
+    }
+}

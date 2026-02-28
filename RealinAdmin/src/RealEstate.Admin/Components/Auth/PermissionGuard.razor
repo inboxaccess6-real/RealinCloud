@@ -1,0 +1,18 @@
+@inject PermissionService PermissionService
+
+@if (HasAccess())
+{
+    @ChildContent
+}
+
+@code {
+    [Parameter] public string Module { get; set; } = "";
+    [Parameter] public string Permission { get; set; } = "read";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool HasAccess()
+    {
+        if (string.IsNullOrEmpty(Module)) return true;
+        return PermissionService.HasPermission(Module, Permission);
+    }
+}

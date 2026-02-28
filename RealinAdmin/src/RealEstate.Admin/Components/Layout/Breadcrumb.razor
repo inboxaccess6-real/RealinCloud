@@ -1,0 +1,72 @@
+@implements IDisposable
+@inject NavigationManager Navigation
+
+<nav class="breadcrumb">
+    <a href="/dashboard" class="breadcrumb-item">Dashboard</a>
+
+    @foreach (var segment in GetBreadcrumbs())
+    {
+        <span class="breadcrumb-separator">/</span>
+        @if (segment.IsLast)
+        {
+            <span class="breadcrumb-item active">@segment.Label</span>
+        }
+        else
+        {
+            <a href="@segment.Href" class="breadcrumb-item">@segment.Label</a>
+        }
+    }
+</nav>
+
+@code {
+    private record BreadcrumbSegment(string Label, string Href, bool IsLast);
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+
+    private List<BreadcrumbSegment> GetBreadcrumbs()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var path = uri.AbsolutePath.Trim('/');
+
+        if (string.IsNullOrEmpty(path) || path == "dashboard")
+            return new List<BreadcrumbSegment>();
+
+        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var breadcrumbs = new List<BreadcrumbSegment>();
+        var currentPath = "";
+
+        for (var i = 0; i < segments.Length; i++)
+        {
+            currentPath += "/" + segments[i];
+            var label = FormatLabel(segments[i]);
+            var isLast = i == segments.Length - 1;
+            breadcrumbs.Add(new BreadcrumbSegment(label, currentPath, isLast));
+        }
+
+        return breadcrumbs;
+    }
+
+    private static string FormatLabel(string segment)
+    {
+        // If it's a GUID, show as "Detail"
+        if (Guid.TryParse(segment, out _))
+            return "Detail";
+
+        // Convert kebab-case to Title Case
+        return string.Join(" ", segment.Split('-')
+            .Select(s => char.ToUpper(s[0]) + s[1..]));
+    }
+}

@@ -52,17 +52,21 @@ public class RoleService : IRoleService
 
     public async Task<RoleResponse> CreateRoleAsync(CreateRoleRequest request)
     {
+        var isValidRole = request.Name.TryParseRoleType(out var roleType);
+        if (!isValidRole)
+            throw new InvalidOperationException("Invalid role type");
+        
         // Check if role with same RoleType already exists
         var existingRole = await _context.Roles
-            .FirstOrDefaultAsync(r => r.RoleType == request.RoleType);
+            .FirstOrDefaultAsync(r => r.RoleType == roleType);
         
         if (existingRole != null)
-            throw new InvalidOperationException($"Role with type {request.RoleType} already exists");
+            throw new InvalidOperationException($"Role with type {roleType} already exists");
 
         var role = new Role
         {
             Id = Guid.NewGuid(),
-            RoleType = request.RoleType,
+            RoleType = roleType,
             Name = request.Name,
             Description = request.Description,
             IsActive = request.IsActive,
@@ -112,8 +116,6 @@ public class RoleService : IRoleService
     {
         return new RoleResponse(
             role.Id,
-            role.RoleType,
-            (int)role.RoleType,
             role.Name,
             role.Description,
             role.IsActive,

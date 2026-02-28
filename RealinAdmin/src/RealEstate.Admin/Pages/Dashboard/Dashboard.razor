@@ -1,0 +1,265 @@
+@page "/dashboard"
+@page "/"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+@using RealEstate.Admin.Auth
+@using RealEstate.Admin.Services
+@using RealEstate.Application.DTOs.Dashboard
+@using RealEstate.Application.DTOs.AuditLogs
+
+@inject DashboardService DashboardService
+@inject AuditLogService AuditLogService
+@inject NavigationManager NavigationManager
+@inject AdminAuthStateProvider AuthStateProvider
+
+<div class="page-header">
+    <h1 class="page-title">@GetGreeting()</h1>
+    @if (AuthStateProvider.CurrentUser is not null)
+    {
+        <span class="role-badge">@AuthStateProvider.CurrentUser.Role</span>
+    }
+</div>
+
+@if (_loading)
+{
+    <div class="metrics-grid">
+        @for (var i = 0; i < 4; i++)
+        {
+            <div class="metric-card">
+                <div class="metric-card-label">Loading...</div>
+                <div class="metric-card-value">--</div>
+            </div>
+        }
+    </div>
+}
+else if (_error is not null)
+{
+    <div class="card">
+        <div class="card-body">
+            <div class="empty-state" style="padding: var(--space-6);">
+                <div class="empty-state-description" style="color: var(--color-error, #dc3545);">
+                    Failed to load dashboard data: @_error
+                </div>
+                <button class="btn btn-primary" style="margin-top: var(--space-4);" @onclick="LoadDataAsync">
+                    Retry
+                </button>
+            </div>
+        </div>
+    </div>
+}
+else if (_metrics is not null)
+{
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-card-label">Total Users</div>
+            <div class="metric-card-value">@_metrics.TotalUsers.ToString("N0")</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-card-label">Total Properties</div>
+            <div class="metric-card-value">@_metrics.TotalProperties.ToString("N0")</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-card-label">Total Agents</div>
+            <div class="metric-card-value">@_metrics.TotalAgents.ToString("N0")</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-card-label">Total Builders</div>
+            <div class="metric-card-value">@_metrics.TotalBuilders.ToString("N0")</div>
+        </div>
+    </div>
+
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-card-label">Total Projects</div>
+            <div class="metric-card-value">@_metrics.TotalProjects.ToString("N0")</div>
+        </div>
+        <div class="metric-card" style="cursor: pointer;" @onclick='() => NavigationManager.NavigateTo("/approvals/agents")'>
+            <div class="metric-card-label">Pending Agent Verifications</div>
+            <div class="metric-card-value">@_metrics.PendingAgentVerifications.ToString("N0")</div>
+        </div>
+        <div class="metric-card" style="cursor: pointer;" @onclick='() => NavigationManager.NavigateTo("/approvals/properties")'>
+            <div class="metric-card-label">Pending Property Approvals</div>
+            <div class="metric-card-value">@_metrics.PendingPropertyApprovals.ToString("N0")</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-card-label">Flagged Properties</div>
+            <div class="metric-card-value">@_metrics.FlaggedProperties.ToString("N0")</div>
+        </div>
+    </div>
+
+    <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+        <div class="card">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Pending Actions</h3>
+            </div>
+            <div class="card-body">
+                @if (_metrics.PendingAgentVerifications == 0 && _metrics.PendingPropertyApprovals == 0 && _metrics.FlaggedProperties == 0)
+                {
+                    <div class="empty-state" style="padding: var(--space-6);">
+                        <div class="empty-state-description">No pending actions</div>
+                    </div>
+                }
+                else
+                {
+                    <ul style="list-style: none; padding: 0; margin: 0;">
+                        @if (_metrics.PendingAgentVerifications > 0)
+                        {
+                            <li style="padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border, #e5e7eb);">
+                                <a href="/approvals/agents" style="text-decoration: none; display: flex; justify-content: space-between; align-items: center;">
+                                    <span>Agent Verifications</span>
+                                    <span class="badge">@_metrics.PendingAgentVerifications</span>
+                                </a>
+                            </li>
+                        }
+                        @if (_metrics.PendingPropertyApprovals > 0)
+                        {
+                            <li style="padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border, #e5e7eb);">
+                                <a href="/approvals/properties" style="text-decoration: none; display: flex; justify-content: space-between; align-items: center;">
+                                    <span>Property Approvals</span>
+                                    <span class="badge">@_metrics.PendingPropertyApprovals</span>
+                                </a>
+                            </li>
+                        }
+                        @if (_metrics.FlaggedProperties > 0)
+                        {
+                            <li style="padding: var(--space-3) 0;">
+                                <a href="/properties?flagged=true" style="text-decoration: none; display: flex; justify-content: space-between; align-items: center;">
+                                    <span>Flagged Properties</span>
+                                    <span class="badge">@_metrics.FlaggedProperties</span>
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-semibold);">Recent Activity</h3>
+            </div>
+            <div class="card-body">
+                @if (_recentLogs is null || _recentLogs.Count == 0)
+                {
+                    <div class="empty-state" style="padding: var(--space-6);">
+                        <div class="empty-state-description">No recent activity</div>
+                    </div>
+                }
+                else
+                {
+                    <ul style="list-style: none; padding: 0; margin: 0;">
+                        @foreach (var log in _recentLogs)
+                        {
+                            <li style="padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border, #e5e7eb);">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                    <div>
+                                        <strong>@log.Action</strong>
+                                        <span style="color: var(--color-text-secondary, #6b7280); margin-left: var(--space-2);">@log.EntityType</span>
+                                    </div>
+                                    <span style="color: var(--color-text-secondary, #6b7280); font-size: var(--font-size-sm, 0.875rem); white-space: nowrap;">
+                                        @FormatRelativeTime(log.CreatedAt)
+                                    </span>
+                                </div>
+                                @if (log.PerformedByUser is not null)
+                                {
+                                    <div style="font-size: var(--font-size-sm, 0.875rem); color: var(--color-text-secondary, #6b7280); margin-top: var(--space-1);">
+                                        by @(log.PerformedByUser.Name ?? log.PerformedByUser.Email ?? "Unknown")
+                                    </div>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private DashboardMetrics? _metrics;
+    private List<AuditLogResponse>? _recentLogs;
+    private bool _loading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        _error = null;
+        StateHasChanged();
+
+        try
+        {
+            var metricsTask = DashboardService.GetMetricsAsync();
+            var logsTask = AuditLogService.GetLogsAsync(1, 5);
+
+            await Task.WhenAll(metricsTask, logsTask);
+
+            var metricsResult = metricsTask.Result;
+            var logsResult = logsTask.Result;
+
+            if (metricsResult.Success && metricsResult.Data is not null)
+            {
+                _metrics = metricsResult.Data;
+            }
+            else
+            {
+                _error = metricsResult.Error ?? "Failed to load dashboard metrics.";
+                return;
+            }
+
+            if (logsResult.Success && logsResult.Data is not null)
+            {
+                _recentLogs = logsResult.Data.Items;
+            }
+            else
+            {
+                _recentLogs = new List<AuditLogResponse>();
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private string GetGreeting()
+    {
+        var hour = DateTime.Now.Hour;
+        var name = AuthStateProvider.CurrentUser?.Name;
+        string timeGreeting;
+
+        if (hour < 12)
+            timeGreeting = "Good morning";
+        else if (hour < 17)
+            timeGreeting = "Good afternoon";
+        else
+            timeGreeting = "Good evening";
+
+        return string.IsNullOrWhiteSpace(name) ? timeGreeting : $"{timeGreeting}, {name}";
+    }
+
+    private static string FormatRelativeTime(DateTime createdAt)
+    {
+        var diff = DateTime.UtcNow - createdAt;
+
+        if (diff.TotalMinutes < 1)
+            return "just now";
+        if (diff.TotalMinutes < 60)
+            return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalHours < 24)
+            return $"{(int)diff.TotalHours}h ago";
+        if (diff.TotalDays < 7)
+            return $"{(int)diff.TotalDays}d ago";
+
+        return createdAt.ToString("MMM dd, yyyy");
+    }
+}
