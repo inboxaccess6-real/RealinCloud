@@ -1,0 +1,35 @@
+# API-only Dockerfile for EC2 deployment (ARM64)
+# WASM is deployed separately on Cloudflare Pages
+
+FROM --platform=linux/arm64 mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+# Copy project files for restore
+COPY src/RealEstate.Domain/RealEstate.Domain.csproj src/RealEstate.Domain/
+COPY src/RealEstate.Application/RealEstate.Application.csproj src/RealEstate.Application/
+COPY src/RealEstate.Infrastructure/RealEstate.Infrastructure.csproj src/RealEstate.Infrastructure/
+COPY src/RealEstate.Api/RealEstate.Api.csproj src/RealEstate.Api/
+
+# Restore
+RUN dotnet restore src/RealEstate.Api/RealEstate.Api.csproj
+
+# Copy all source
+COPY src/ src/
+
+# Publish API only
+RUN dotnet publish src/RealEstate.Api/RealEstate.Api.csproj \
+    -c Release \
+    -o /app/publish
+
+# Runtime
+FROM --platform=linux/arm64 mcr.microsoft.com/dotnet/aspnet:10.0
+WORKDIR /app
+
+COPY --from=build /app/publish .
+
+ENV ASPNETCORE_URLS=http://localhost:5000
+ENV ASPNETCORE_ENVIRONMENT=Development
+
+EXPOSE 5000
+
+ENTRYPOINT ["dotnet", "RealEstate.Api.dll"]

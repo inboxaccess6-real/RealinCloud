@@ -1,0 +1,62 @@
+name: Deploy API to EC2
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'RealinAdmin/src/RealEstate.Api/**'
+      - 'RealinAdmin/src/RealEstate.Domain/**'
+      - 'RealinAdmin/src/RealEstate.Application/**'
+      - 'RealinAdmin/src/RealEstate.Infrastructure/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore RealinAdmin/RealEstate.sln
+
+      - name: Build
+        run: dotnet build RealinAdmin/RealEstate.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test RealinAdmin/RealEstate.sln -c Release --no-build --verbosity normal
+
+      - name: Publish API
+        run: |
+          dotnet publish RealinAdmin/src/RealEstate.Api/RealEstate.Api.csproj \
+            -c Release \
+            -r linux-arm64 \
+            --self-contained false \
+            --no-build \
+            -o ./publish
+
+      - name: Deploy to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "publish/*"
+          target: "/opt/realin-api"
+          strip_components: 1
+          overwrite: true
+
+      - name: Restart API and verify
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            sudo systemctl restart realin-api
+            sleep 5
+            curl -sf http://localhost:5000/openapi/v1.json > /dev/null && echo "Health check passed" || (echo "Health check failed"; sudo journalctl -u realin-api --no-pager -n 30; exit 1)

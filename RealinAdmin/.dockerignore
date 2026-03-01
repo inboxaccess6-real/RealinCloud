@@ -1,0 +1,14 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/.git/
+**/uploads/
+*.md
+.DS_Store
+.vs/
+.vscode/
+*.user
+*.suo
+tests/
+Docs/
+scripts/
