@@ -37,6 +37,7 @@ public class GetUsersHandler : IRequestHandler<GetUsersQuery, PagedResult<UserRe
             user.PhoneNumber,
             user.Name,
             user.Provider,
+            user.RoleId,
             user.Role?.Name ?? "",
             user.IsActive,
             user.IsBlocked,

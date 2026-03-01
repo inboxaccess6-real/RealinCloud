@@ -13,7 +13,7 @@ public static class MappingExtensions
 {
     public static UserResponse ToResponse(this User user) => new(
         user.Id, user.Email, user.PhoneNumber, user.Name,
-        user.Provider, user.Role?.Name ?? "",
+        user.Provider, user.RoleId, user.Role?.Name ?? "",
         user.IsActive, user.IsBlocked, user.IsBlacklisted,
         user.BlacklistReason, user.IsDeleted,
         user.CreatedAt, user.UpdatedAt

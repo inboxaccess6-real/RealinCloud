@@ -8,6 +8,7 @@ public record UserResponse(
     string? PhoneNumber,
     string? Name,
     AuthProvider LoginType,
+    Guid RoleId,
     string RoleName,
     bool IsActive,
     bool IsBlocked,

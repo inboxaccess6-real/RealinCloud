@@ -1,11 +1,14 @@
 @page "/users/{Id:guid}"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @using RealEstate.Application.DTOs.Users
+@using RealEstate.Application.DTOs.Roles
 
 @inject UserService UserService
 @inject ToastService ToastService
 @inject NavigationManager NavigationManager
 @inject PermissionService PermissionService
+@inject RoleService RoleService
+@inject AuthenticationStateProvider AuthStateProvider
 
 @if (_isLoading)
 {
@@ -115,6 +118,18 @@ else
                             <label class="form-label">Phone Number</label>
                             <input type="text" class="form-input" @bind="_editPhone" placeholder="Enter phone number" />
                         </div>
+                        @if (_isSuperAdmin && _roles is not null)
+                        {
+                            <div class="form-group" style="margin-bottom: 1rem;">
+                                <label class="form-label">Role</label>
+                                <select class="form-input" @bind="_editRoleId">
+                                    @foreach (var role in _roles)
+                                    {
+                                        <option value="@role.Id">@role.Name</option>
+                                    }
+                                </select>
+                            </div>
+                        }
                         <div class="form-group" style="margin-bottom: 1.5rem;">
                             <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
                                 <input type="checkbox" @bind="_editIsActive" />
@@ -161,6 +176,11 @@ else
     private string? _editName;
     private string? _editPhone;
     private bool _editIsActive;
+    private Guid _editRoleId;
+
+    // Role dropdown (SuperAdmin only)
+    private bool _isSuperAdmin;
+    private List<RoleResponse>? _roles;
 
     // Confirm dialog
     private ConfirmDialog? _confirmDialog;
@@ -168,7 +188,20 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadUser();
+        // Check if current user is SuperAdmin
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var roleLevel = authState.User.FindFirst("role_level")?.Value;
+        _isSuperAdmin = roleLevel == "100";
+
+        var loadUserTask = LoadUser();
+        Task? loadRolesTask = null;
+
+        if (_isSuperAdmin)
+            loadRolesTask = LoadRoles();
+
+        await loadUserTask;
+        if (loadRolesTask is not null)
+            await loadRolesTask;
     }
 
     private async Task LoadUser()
@@ -203,12 +236,20 @@ else
         }
     }
 
+    private async Task LoadRoles()
+    {
+        var result = await RoleService.GetRolesAsync();
+        if (result.Success && result.Data is not null)
+            _roles = result.Data;
+    }
+
     private void PopulateEditForm()
     {
         if (_user is null) return;
         _editName = _user.Name;
         _editPhone = _user.PhoneNumber;
         _editIsActive = _user.IsActive;
+        _editRoleId = _user.RoleId;
     }
 
     private string GetUserStatus()
@@ -237,9 +278,13 @@ else
 
         try
         {
+            // Only send RoleId if SuperAdmin changed it
+            Guid? roleId = _isSuperAdmin && _editRoleId != _user.RoleId ? _editRoleId : null;
+
             var request = new UpdateUserRequest(
                 Name: _editName,
                 PhoneNumber: _editPhone,
+                RoleId: roleId,
                 IsActive: _editIsActive
             );
 

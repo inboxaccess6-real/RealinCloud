@@ -1,6 +1,7 @@
 using MediatR;
 using RealEstate.Application.DTOs.Users;
 using RealEstate.Application.Interfaces;
+using RealEstate.Domain.Entities;
 using RealEstate.Domain.Exceptions;
 
 namespace RealEstate.Application.Features.Users.Commands;
@@ -10,10 +11,12 @@ public record UpdateUserCommand(Guid Id, UpdateUserRequest Request) : IRequest<U
 public class UpdateUserHandler : IRequestHandler<UpdateUserCommand, UserResponse?>
 {
     private readonly IUserRepository _userRepository;
+    private readonly ICurrentUserService _currentUserService;
 
-    public UpdateUserHandler(IUserRepository userRepository)
+    public UpdateUserHandler(IUserRepository userRepository, ICurrentUserService currentUserService)
     {
         _userRepository = userRepository;
+        _currentUserService = currentUserService;
     }
 
     public async Task<UserResponse?> Handle(UpdateUserCommand command, CancellationToken cancellationToken)
@@ -33,7 +36,13 @@ public class UpdateUserHandler : IRequestHandler<UpdateUserCommand, UserResponse
             user.PhoneNumber = command.Request.PhoneNumber;
 
         if (command.Request.RoleId.HasValue)
+        {
+            // Only SuperAdmin can change user roles
+            if (_currentUserService.Role != nameof(RoleType.SuperAdmin))
+                throw new ForbiddenException("Only SuperAdmin can change user roles.");
+
             user.RoleId = command.Request.RoleId.Value;
+        }
 
         if (command.Request.IsActive.HasValue)
             user.IsActive = command.Request.IsActive.Value;
@@ -48,6 +57,7 @@ public class UpdateUserHandler : IRequestHandler<UpdateUserCommand, UserResponse
             user.PhoneNumber,
             user.Name,
             user.Provider,
+            user.RoleId,
             user.Role?.Name ?? "",
             user.IsActive,
             user.IsBlocked,
