@@ -16,36 +16,9 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        // Database — use DATABASE_URL if available, otherwise fall back to appsettings
-        var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
-        string connectionString;
-
-        if (!string.IsNullOrEmpty(databaseUrl))
-        {
-            // Support both postgres:// and postgresql:// schemes
-            var normalized = databaseUrl.StartsWith("postgres://")
-                ? "postgresql://" + databaseUrl["postgres://".Length..]
-                : databaseUrl;
-            var uri = new Uri(normalized);
-            var userInfo = uri.UserInfo.Split(':');
-
-            // Read sslmode from query string (Neon: require, Fly.io: disable)
-            var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
-            var sslMode = query["sslmode"] switch
-            {
-                "require" => "Require",
-                "disable" => "Disable",
-                "prefer" => "Prefer",
-                _ => "Require" // default to SSL for safety
-            };
-
-            connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode={sslMode};SearchPath=realin";
-        }
-        else
-        {
-            connectionString = configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("No database connection configured. Set DATABASE_URL or ConnectionStrings:DefaultConnection.");
-        }
+        // Database
+        var connectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString));

@@ -1,48 +1,115 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+publish/
+out/
+artifacts/
+x64/
+x86/
+bld/
+[Ll]og/
+[Ll]ogs/
+
 # .NET
-bin/
-obj/
 *.user
 *.suo
+*.userosscache
+*.sln.docstates
 *.cache
+*.rsuser
+
+# NuGet
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nupkg
+**/packages/repositories.config
+project.lock.json
+project.fragment.lock.json
+
+# Visual Studio
+.vs/
+.vscode/
+.idea/
+*.sln.iml
+launchSettings.json
+
+# Rider
+*.sln.iml
+
+# User-specific files
+*.suo
+*.user
+*.rsuser
+
+# Build results
 *.dll
 *.exe
 *.pdb
+*.ilk
+*.meta
+*.obj
+*.iobj
+*.ipdb
+*.mdb
 
-# Development
-.vscode/
-.idea/
-*.swp
-*.bak
-*.tmp
-*~
+# Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+TestResult.xml
+coverage/
+*.coverage
+*.coveragexml
 
-# Database
-*.db
-*.db-shm
-*.db-wal
+# NCrunch
+_NCrunch_*
+.*crunch*.local.xml
+nCrunchTemp_*
 
-# Environment
+# Publish profiles
+*.pubxml
+*.publishproj
+
+# dotnet tool
+.dotnet/
+tools/
+
+# Environment / Secrets
 .env
-.env.local
-.env.production
-.env.*.local
+.env.*
+!.env.example
 appsettings.*.json
 !appsettings.json
 !appsettings.Development.json
-
-# User Secrets (usually stored outside project, but just in case)
 secrets.json
-
-# Sensitive configuration files
 *secrets*
 *credentials*
 *.pfx
 *.p12
 
+# Database
+*.db
+*.db-shm
+*.db-wal
+*.mdf
+*.ldf
+*.ndf
+
 # Logs
-logs/
 *.log
 
 # OS
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temp files
+*.swp
+*.bak
+*.tmp
+*~
+
+# Uploads
+uploads/

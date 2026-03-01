@@ -315,29 +315,28 @@ ALTER USER realin_app SET search_path TO realin;
 git clone https://github.com/<YOUR_ORG>/RealinCloud.git ~/RealinCloud
 cd ~/RealinCloud/RealinAdmin
 
-# Set connection string
-export DATABASE_URL="postgresql://realin_app:YOUR_STRONG_PASSWORD@localhost:5432/realin_dev?sslmode=disable"
-
-# Run migrations
+# Run migrations (pass connection string directly to avoid URL parsing issues)
 dotnet ef database update \
   --project src/RealEstate.Infrastructure \
-  --startup-project src/RealEstate.Api
+  --startup-project src/RealEstate.Api \
+  --connection "Host=localhost;Port=5432;Database=realin_dev;Username=realin_app;Password=YOUR_STRONG_PASSWORD;SSL Mode=Disable;SearchPath=realin"
 ```
 
 **Option B: From local machine via SSH tunnel**
 
 ```bash
-# Terminal 1: SSH tunnel
-ssh -i realin-dev-key.pem -L 5432:localhost:5432 ubuntu@<EC2_PUBLIC_IP>
+# Terminal 1: SSH tunnel (use 5433 locally if your local PostgreSQL is on 5432)
+ssh -i realin-dev-key.pem -L 5433:localhost:5432 ubuntu@<EC2_PUBLIC_IP>
 
 # Terminal 2: Run migrations locally (pointed at tunneled port)
 cd RealinAdmin
-export DATABASE_URL="postgresql://realin_app:YOUR_STRONG_PASSWORD@localhost:5432/realin_dev?sslmode=disable"
-
 dotnet ef database update \
   --project src/RealEstate.Infrastructure \
-  --startup-project src/RealEstate.Api
+  --startup-project src/RealEstate.Api \
+  --connection "Host=localhost;Port=5433;Database=realin_dev;Username=realin_app;Password=YOUR_STRONG_PASSWORD;SSL Mode=Disable;SearchPath=realin"
 ```
+
+> Using `--connection` passes the connection string directly to EF Core, bypassing any URL parsing. This avoids issues with special characters in passwords.
 
 ### 3.3 Seed SuperAdmin
 
@@ -359,7 +358,8 @@ ASPNETCORE_ENVIRONMENT=Development
 ASPNETCORE_URLS=http://localhost:5000
 
 # Database (local PostgreSQL, no SSL needed)
-DATABASE_URL=postgresql://realin_app:YOUR_STRONG_PASSWORD@localhost:5432/realin_dev?sslmode=disable
+# Use .NET connection string format to avoid URL parsing issues with special characters in passwords
+ConnectionStrings__DefaultConnection=Host=localhost;Port=5432;Database=realin_dev;Username=realin_app;Password=YOUR_STRONG_PASSWORD;SSL Mode=Disable;SearchPath=realin
 
 # JWT
 Jwt__SecretKey=YOUR_JWT_SECRET_KEY_AT_LEAST_32_CHARACTERS
@@ -498,7 +498,7 @@ builder.Services.AddCors(options =>
 |----------|---------|-------|
 | `ASPNETCORE_ENVIRONMENT` | `Development` | |
 | `ASPNETCORE_URLS` | `http://localhost:5000` | Only listens on localhost; Cloudflare Tunnel handles external access |
-| `DATABASE_URL` | `postgresql://realin_app:pass@localhost:5432/realin_dev?sslmode=disable` | Local PG, no SSL |
+| `ConnectionStrings__DefaultConnection` | `Host=localhost;Port=5432;Database=realin_dev;Username=realin_app;Password=YOUR_PASSWORD;SSL Mode=Disable;SearchPath=realin` | .NET connection string format, avoids URL parsing issues |
 | `Jwt__SecretKey` | (64-char random string) | Generate with `openssl rand -base64 48` |
 | `Jwt__Issuer` | `RealinApi` | |
 | `Jwt__Audience` | `RealinApp` | |
@@ -584,11 +584,10 @@ ssh -i realin-dev-key.pem ubuntu@<EC2_PUBLIC_IP>
 cd ~/RealinCloud/RealinAdmin
 git pull origin develop
 
-export DATABASE_URL="postgresql://realin_app:YOUR_STRONG_PASSWORD@localhost:5432/realin_dev?sslmode=disable"
-
 dotnet ef database update \
   --project src/RealEstate.Infrastructure \
-  --startup-project src/RealEstate.Api
+  --startup-project src/RealEstate.Api \
+  --connection "Host=localhost;Port=5432;Database=realin_dev;Username=realin_app;Password=YOUR_STRONG_PASSWORD;SSL Mode=Disable;SearchPath=realin"
 ```
 
 ### 8.6 Manual API Deploy (fallback)
